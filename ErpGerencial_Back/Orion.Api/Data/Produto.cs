@@ -22,6 +22,8 @@ public class Produto
     public decimal PrecoCusto { get; set; }
     public decimal PrecoVendaPf { get; set; }
     public decimal PrecoVendaPj { get; set; }
+    /// <summary>Preço da venda com troca na residência do cliente.</summary>
+    public decimal PrecoVendaTrocaResidencia { get; set; }
 
     /// <summary>Quantidade em estoque (aceita fração, ex.: 1,5 kg).</summary>
     public decimal Quantidade { get; set; }
@@ -36,6 +38,13 @@ public class Produto
     public string Unidade { get; set; } = "UN";
     /// <summary>Abaixo disso, o produto aparece como "estoque baixo".</summary>
     public decimal EstoqueMinimo { get; set; }
+
+    /// <summary>Fornecedor do produto: nome e WhatsApp (só dígitos, com DDD).</summary>
+    public string? FornecedorNome { get; set; }
+    public string? FornecedorTelefone { get; set; }
+
+    /// <summary>Telefone comercial do fornecedor (só dígitos, com DDD).</summary>
+    public string? TelefoneComercial { get; set; }
 
 
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;

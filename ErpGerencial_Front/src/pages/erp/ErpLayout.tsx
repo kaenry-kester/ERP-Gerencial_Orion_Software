@@ -1,21 +1,39 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useSessaoExpirada } from '../../hooks/useSessaoExpirada'
-import { expiracaoDoToken, lerSessao, renovarSessao, sair, salvarSessao, sessaoAtual, type Sessao } from '../../services/api'
+import {
+  expiracaoDoToken,
+  fecharSistema,
+  lerSessao,
+  mensagemDe,
+  podeFecharSistema,
+  renovarSessao,
+  sair,
+  salvarSessao,
+  sessaoAtual,
+  type Sessao,
+} from '../../services/api'
 import type { ContextoErp } from './contexto'
+import JanelaSair from './JanelaSair'
 import { caminhoDo, podeAcessar, PREFERENCIAS } from './modulos'
 import './erp.css'
 
 /*
   Estrutura do ERP (depois do login):
   - header: logo Órion (volta ao início) e os links Minha conta,
-    Empresa, Usuários (administrador) e Sair;
+    Empresa, Usuários (administrador) e Sair (no computador da loja, pode fechar o Órion inteiro);
   - conteúdo: a tela inicial com os botões grandes ou a página do módulo aberto.
 */
 export default function ErpLayout() {
   const navigate = useNavigate()
   const sessaoExpirada = useSessaoExpirada()
   const [sessao, setSessao] = useState(lerSessao)
+  // "Sair" no computador da loja: pode fechar o Órion inteiro (sistema, WhatsApp e banco)
+  const [podeFechar, setPodeFechar] = useState(false)
+  const [janelaSair, setJanelaSair] = useState(false)
+  const [fechando, setFechando] = useState(false)
+  const [erroFechar, setErroFechar] = useState<string | null>(null)
+  const [fechado, setFechado] = useState(false)
 
   const atualizarSessao = (nova: Sessao) => {
     salvarSessao(nova)
@@ -65,6 +83,29 @@ export default function ErpLayout() {
     }
   }, [sessao?.token]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Programa da loja aberto no próprio computador: o "Sair" oferece fechar tudo
+  useEffect(() => {
+    if (!sessao) return
+    let ativo = true
+    podeFecharSistema(sessao.token)
+      .then((r) => ativo && setPodeFechar(r.podeFechar))
+      .catch(() => {})
+    return () => {
+      ativo = false
+    }
+  }, [sessao?.token]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (fechado) {
+    return (
+      <div className="erp-fechado" role="status">
+        <img src="/imgs/logo-orion.png" alt="Órion" />
+        <h1>O Órion foi fechado</h1>
+        <p>A cópia de segurança foi feita e tudo foi fechado. Seus dados estão salvos.</p>
+        <p>Já pode fechar esta janela. Para abrir de novo, use o atalho “Órion” da Área de Trabalho.</p>
+      </div>
+    )
+  }
+
   if (!sessao) return <Navigate to="/login" replace />
 
   const contexto: ContextoErp = { sessao, atualizarSessao }
@@ -72,6 +113,20 @@ export default function ErpLayout() {
   const sairDaConta = () => {
     sair()
     navigate('/', { replace: true })
+  }
+
+  const fecharTudo = async () => {
+    setFechando(true)
+    setErroFechar(null)
+    try {
+      await fecharSistema(sessao.token)
+      sair()
+      setFechado(true)
+      window.close() // só funciona em janelas abertas pelo próprio Órion; senão fica a mensagem
+    } catch (erro) {
+      setErroFechar(`Não foi possível fechar: ${mensagemDe(erro)}. Use o "Parar Orion" da pasta do programa.`)
+      setFechando(false)
+    }
   }
 
   return (
@@ -100,7 +155,11 @@ export default function ErpLayout() {
                 )}
               </NavLink>
             ))}
-            <button type="button" className="erp-header-botao" onClick={sairDaConta}>
+            <button
+              type="button"
+              className="erp-header-botao"
+              onClick={() => (podeFechar ? setJanelaSair(true) : sairDaConta())}
+            >
               Sair
             </button>
           </nav>
@@ -110,6 +169,15 @@ export default function ErpLayout() {
       <main className="erp-conteudo">
         <Outlet context={contexto} />
       </main>
+
+      <JanelaSair
+        aberto={janelaSair}
+        fechando={fechando}
+        erro={erroFechar}
+        onFecharTudo={() => void fecharTudo()}
+        onSoSair={sairDaConta}
+        onCancelar={() => setJanelaSair(false)}
+      />
     </div>
   )
 }

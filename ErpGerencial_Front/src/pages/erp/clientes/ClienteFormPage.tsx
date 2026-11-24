@@ -23,7 +23,10 @@ import {
   erroDocumento,
   formatarCep,
   formatarDocumento,
+  formatarMoeda,
   formatarTelefone,
+  mascaraMoeda,
+  moedaParaNumero,
   normalizarCnpj,
   telefoneValido,
 } from '../../../utils/validacao'
@@ -75,6 +78,7 @@ const VAZIO: Valores = {
   marca: '',
   modelo: '',
   observacao: '',
+  valor: '',
   envioDia: '',
   envioHora: '',
 }
@@ -118,6 +122,7 @@ const MASCARAS: Partial<Record<Campo, (v: string) => string>> = {
   telefoneComercial: formatarTelefone,
   documento: formatarDocumento,
   cep: formatarCep,
+  valor: mascaraMoeda,
   uf: (v) => v.replace(/[^a-z]/gi, '').slice(0, 2).toUpperCase(),
 }
 
@@ -164,6 +169,7 @@ const paraFormulario = (c: Cliente): Valores => ({
   marca: c.marca ?? '',
   modelo: c.modelo ?? '',
   observacao: c.observacao ?? '',
+  valor: c.valor != null ? formatarMoeda(c.valor) : '',
   ...paraCamposEnvio(c.envioEm),
 })
 
@@ -177,6 +183,7 @@ const paraApi = ({ envioDia, envioHora, ...v }: Valores): DadosCliente => ({
   dataCompra: v.dataCompra || null,
   documento: normalizarCnpj(v.documento),
   cep: apenasDigitos(v.cep),
+  valor: moedaParaNumero(v.valor),
   // O servidor calcula o intervalo pela data: hoje 14/10 e próximo envio 14/12 → a cada 2 meses
   envioEm: envioDosCampos({ envioDia, envioHora } as Valores)?.toISOString() ?? null,
 })
@@ -484,7 +491,15 @@ export default function ClienteFormPage() {
                 <CampoFicha {...campo('item')} rotulo="Item" maxLength={120} placeholder="Ex.: Purificador" className="c3" />
                 <CampoFicha {...campo('marca')} rotulo="Marca" maxLength={80} className="c2" />
                 <CampoFicha {...campo('modelo')} rotulo="Modelo" maxLength={80} className="c2" />
-                <CampoFicha {...campo('observacao')} rotulo="Observação" maxLength={2000} className="c5" />
+                <CampoFicha
+                  {...campo('valor')}
+                  rotulo="Valor"
+                  inputMode="numeric"
+                  placeholder="R$ 0,00"
+                  icone="/imgs/cifrao.svg"
+                  className="c2"
+                />
+                <CampoFicha {...campo('observacao')} rotulo="Observação" maxLength={2000} className="c3" />
               </div>
             </div>
 

@@ -33,7 +33,10 @@ function Nativo([scriptblock]$bloco) {
 }
 
 # Abre o navegador (ORION_SEM_NAVEGADOR=1 desliga, só para testes)
-function AbrirNavegador([string]$endereco) { if (-not $env:ORION_SEM_NAVEGADOR) { Start-Process $endereco } }
+# Endereço diferente a cada abertura: o navegador não reaproveita uma tela guardada de uma versão antiga
+function AbrirNavegador([string]$endereco) {
+  if (-not $env:ORION_SEM_NAVEGADOR) { Start-Process "$endereco/?v=$([DateTime]::Now.Ticks)" }
+}
 
 function NovaChave([int]$bytes = 32) {
   $gerador = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -187,6 +190,8 @@ function VariaveisDoSistema($config) {
   $env:Backup__AoFechar = 'true'
   $env:Https__Ativo = 'false'
   $env:Sistema__PermitirDesligar = 'true'
+  # Botão "Sair" no computador da loja: o Órion roda este script com "parar" (fecha tudo, com a última cópia)
+  $env:Sistema__ScriptParar = Join-Path $sistema 'orion.ps1'
 }
 
 function Processo([string]$arquivoPid) {

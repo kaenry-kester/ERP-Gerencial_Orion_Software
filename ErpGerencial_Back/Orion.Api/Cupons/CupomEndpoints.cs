@@ -373,17 +373,8 @@ public static class CupomEndpoints
             destino = await db.Clientes.Where(c => c.Id == clienteId).Select(c => c.Celular).SingleOrDefaultAsync(ct) ?? "";
         if (destino.Length is not (10 or 11)) return Erro("numero", "Digite o WhatsApp do cliente com DDD");
 
-        byte[] pdf;
-        try
-        {
-            pdf = Convert.FromBase64String(req.Pdf ?? "");
-        }
-        catch (FormatException)
-        {
-            pdf = [];
-        }
-        if (pdf is not [0x25, 0x50, 0x44, 0x46, ..] || pdf.Length > 5 * 1024 * 1024)
-            return Results.BadRequest(new { erro = "Não foi possível montar o PDF do cupom. Tente de novo." });
+        var pdf = LerPdf(req.Pdf);
+        if (pdf is null) return Results.BadRequest(new { erro = "Não foi possível montar o PDF do cupom. Tente de novo." });
 
         var numero = cupom.Numero.ToString("D6");
         var nome = cupom.ClienteNome?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
@@ -398,6 +389,21 @@ public static class CupomEndpoints
             return Results.BadRequest(new { erro = ex.Message });
         }
         return Results.Ok(new { numero = destino });
+    }
+
+    /// <summary>PDF em base64 vindo do site; null se não for um PDF ou passar de 5 MB. Usado também no orçamento.</summary>
+    public static byte[]? LerPdf(string? base64)
+    {
+        byte[] pdf;
+        try
+        {
+            pdf = Convert.FromBase64String(base64 ?? "");
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+        return pdf is [0x25, 0x50, 0x44, 0x46, ..] && pdf.Length <= 5 * 1024 * 1024 ? pdf : null;
     }
 
     /// <summary>Cancela o cupom (fica registrado, com o motivo) e devolve ao estoque os produtos dele.</summary>

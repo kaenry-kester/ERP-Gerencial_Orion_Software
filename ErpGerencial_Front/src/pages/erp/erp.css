@@ -1448,3 +1448,78 @@
   font-size: 0.88rem;
   line-height: 1.4;
 }
+
+/* ---------- Sair: fechar o Órion inteiro (computador da loja) ---------- */
+
+.janela-sair {
+  width: min(520px, calc(100vw - 2rem));
+  margin: auto;
+  padding: 1.4rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 24px 60px rgba(11, 10, 9, 0.35);
+  color: var(--texto);
+}
+
+.janela-sair::backdrop {
+  background: rgba(11, 10, 9, 0.55);
+}
+
+.janela-sair h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.3rem;
+  color: var(--azul-escuro);
+}
+
+.janela-sair p {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.janela-sair-erro {
+  padding: 0.6rem 0.8rem;
+  border-radius: 4px;
+  background: var(--erro-fundo);
+  color: var(--erro);
+  font-weight: 700;
+}
+
+.janela-sair-botoes {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.janela-sair-botoes .pagina-botao {
+  min-height: 50px;
+}
+
+/* Depois de fechar: só a mensagem (o servidor já não responde) */
+.erp-fechado {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.8rem;
+  padding: 2rem;
+  background: var(--grad-azul);
+  color: #fff;
+  text-align: center;
+}
+
+.erp-fechado img {
+  width: min(260px, 60vw);
+  margin-bottom: 0.5rem;
+}
+
+.erp-fechado h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.erp-fechado p {
+  margin: 0;
+  max-width: 34rem;
+  line-height: 1.5;
+  opacity: 0.92;
+}

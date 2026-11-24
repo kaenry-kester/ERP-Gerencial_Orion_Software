@@ -17,7 +17,7 @@ import {
   type ConfiguracaoWhatsapp,
   type EnvioWhatsapp,
 } from '../../../services/api'
-import { formatarCep, formatarDocumento, formatarTelefone } from '../../../utils/validacao'
+import { formatarCep, formatarDocumento, formatarMoeda, formatarTelefone } from '../../../utils/validacao'
 import AvisoPagina from '../AvisoPagina'
 import { useErp } from '../contexto'
 import FaixaPagina from '../FaixaPagina'
@@ -223,7 +223,13 @@ export default function ClientePage() {
                   <ValorFicha rotulo="Item" valor={cliente.item} className="c3" />
                   <ValorFicha rotulo="Marca" valor={cliente.marca} className="c2" />
                   <ValorFicha rotulo="Modelo" valor={cliente.modelo} className="c2" />
-                  <ValorFicha rotulo="Observação" valor={cliente.observacao} className="c5" />
+                  <ValorFicha
+                    rotulo="Valor"
+                    valor={cliente.valor != null ? formatarMoeda(cliente.valor) : null}
+                    icone="/imgs/cifrao.svg"
+                    className="c2"
+                  />
+                  <ValorFicha rotulo="Observação" valor={cliente.observacao} className="c3" />
                 </div>
               </div>
 

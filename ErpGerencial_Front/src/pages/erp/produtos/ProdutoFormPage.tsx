@@ -22,6 +22,7 @@ import {
   erroCodigoBarras,
   formatarMoeda,
   formatarQuantidade,
+  formatarTelefone,
   mascaraMoeda,
   mascaraQuantidade,
   mascaraQuantidadeComSinal,
@@ -45,6 +46,7 @@ type Campo =
   | 'precoCusto'
   | 'precoVendaPf'
   | 'precoVendaPj'
+  | 'precoVendaTrocaResidencia'
   | 'quantidade'
   | 'marca'
   | 'modelo'
@@ -53,6 +55,9 @@ type Campo =
   | 'observacao'
   | 'estoqueMinimo'
   | 'unidade'
+  | 'fornecedorNome'
+  | 'fornecedorTelefone'
+  | 'telefoneComercial'
 type Valores = Record<Campo, string>
 
 const VAZIO: Valores = {
@@ -62,6 +67,7 @@ const VAZIO: Valores = {
   precoCusto: '',
   precoVendaPf: '',
   precoVendaPj: '',
+  precoVendaTrocaResidencia: '',
   quantidade: '',
   marca: '',
   modelo: '',
@@ -70,14 +76,20 @@ const VAZIO: Valores = {
   observacao: '',
   estoqueMinimo: '',
   unidade: 'UN',
+  fornecedorNome: '',
+  fornecedorTelefone: '',
+  telefoneComercial: '',
 }
 
 const MASCARAS: Partial<Record<Campo, (v: string) => string>> = {
   precoCusto: mascaraMoeda,
   precoVendaPf: mascaraMoeda,
   precoVendaPj: mascaraMoeda,
+  precoVendaTrocaResidencia: mascaraMoeda,
   quantidade: mascaraQuantidadeComSinal,
   estoqueMinimo: mascaraQuantidade,
+  fornecedorTelefone: formatarTelefone,
+  telefoneComercial: formatarTelefone,
 }
 
 const VOLTAGENS = ['110V', '127V', '220V', 'Bivolt', '12V', '24V', 'Não se aplica']
@@ -95,6 +107,7 @@ const paraFormulario = (p: Produto): Valores => ({
   precoCusto: formatarMoeda(p.precoCusto),
   precoVendaPf: formatarMoeda(p.precoVendaPf),
   precoVendaPj: formatarMoeda(p.precoVendaPj),
+  precoVendaTrocaResidencia: formatarMoeda(p.precoVendaTrocaResidencia),
   quantidade: formatarQuantidade(p.quantidade).replace(/\./g, ''),
   marca: p.marca ?? '',
   modelo: p.modelo ?? '',
@@ -103,6 +116,9 @@ const paraFormulario = (p: Produto): Valores => ({
   observacao: p.observacao ?? '',
   estoqueMinimo: p.estoqueMinimo ? formatarQuantidade(p.estoqueMinimo).replace(/\./g, '') : '',
   unidade: p.unidade || 'UN',
+  fornecedorNome: p.fornecedorNome ?? '',
+  fornecedorTelefone: formatarTelefone(p.fornecedorTelefone ?? ''),
+  telefoneComercial: formatarTelefone(p.telefoneComercial ?? ''),
 })
 
 const paraApi = (v: Valores): DadosProduto => ({
@@ -110,6 +126,7 @@ const paraApi = (v: Valores): DadosProduto => ({
   precoCusto: moedaParaNumero(v.precoCusto),
   precoVendaPf: moedaParaNumero(v.precoVendaPf),
   precoVendaPj: moedaParaNumero(v.precoVendaPj),
+  precoVendaTrocaResidencia: moedaParaNumero(v.precoVendaTrocaResidencia),
   quantidade: quantidadeParaNumero(v.quantidade),
   estoqueMinimo: quantidadeParaNumero(v.estoqueMinimo),
 })
@@ -309,20 +326,44 @@ export default function ProdutoFormPage() {
               className="c4"
             />
 
-            <h2 className="ficha-topico">Preços e estoque</h2>
             {/* Estoque mínimo e unidade não aparecem mais: os valores já salvos continuam e são enviados de volta como estão */}
-            <CampoFicha {...campo('precoCusto')} rotulo="Custo" inputMode="numeric" placeholder="R$ 0,00" className="c2" />
-            <CampoFicha {...campo('precoVendaPf')} rotulo="Venda pessoa física" inputMode="numeric" placeholder="R$ 0,00" className="c4" />
-            <CampoFicha {...campo('precoVendaPj')} rotulo="Venda pessoa jurídica" inputMode="numeric" placeholder="R$ 0,00" className="c4" />
-            <CampoFicha {...campo('quantidade')} rotulo="Em estoque" placeholder="0" className="c2" />
+            <CampoFicha {...campo('precoCusto')} rotulo="Custo" inputMode="numeric" placeholder="R$ 0,00" className="c3" />
+            <CampoFicha {...campo('precoVendaPf')} rotulo="Venda pessoa física" inputMode="numeric" placeholder="R$ 0,00" className="c3" />
+            <CampoFicha {...campo('precoVendaPj')} rotulo="Venda pessoa jurídica" inputMode="numeric" placeholder="R$ 0,00" className="c3" />
+            <CampoFicha
+              {...campo('precoVendaTrocaResidencia')}
+              rotulo="Venda com troca residência"
+              inputMode="numeric"
+              placeholder="R$ 0,00"
+              className="c3"
+            />
 
-            <h2 className="ficha-topico">Características</h2>
+            <CampoFicha {...campo('quantidade')} rotulo="Em estoque" placeholder="0" className="c2" />
             <CampoFicha {...campo('marca')} rotulo="Marca" maxLength={80} className="c3" />
             <CampoFicha {...campo('modelo')} rotulo="Modelo" maxLength={80} className="c3" />
-            <CampoFicha {...campo('cor')} rotulo="Cor" maxLength={50} className="c3" />
-            <CampoFicha {...campo('voltagem')} rotulo="Voltagem" opcoes={opcoesVoltagem(valores.voltagem)} className="c3" />
+            <CampoFicha {...campo('cor')} rotulo="Cor" maxLength={50} className="c2" />
+            <CampoFicha {...campo('voltagem')} rotulo="Voltagem" opcoes={opcoesVoltagem(valores.voltagem)} className="c2" />
+
+            <CampoFicha {...campo('fornecedorNome')} rotulo="Nome do fornecedor" maxLength={120} className="c4" />
+            <CampoFicha
+              {...campo('fornecedorTelefone')}
+              rotulo="WhatsApp do fornecedor"
+              type="tel"
+              inputMode="numeric"
+              placeholder="(16) 99999-9999"
+              icone="/imgs/whatsapp.png"
+              className="c4"
+            />
+            <CampoFicha
+              {...campo('telefoneComercial')}
+              rotulo="Telefone comercial"
+              type="tel"
+              inputMode="numeric"
+              placeholder="(16) 3333-3333"
+              className="c4"
+            />
             {/* Observação e imagens lado a lado: o cadastro inteiro cabe na tela sem rolar */}
-            <CampoFicha {...campo('observacao')} rotulo="Observação" linhas={4} maxLength={2000} className="c5" />
+            <CampoFicha {...campo('observacao')} rotulo="Observação" linhas={3} maxLength={2000} className="c5" />
             <div id="produto-imagens-celula" className="ficha-campo ficha-imagens c7">
               <span className="ficha-rotulo">Imagens</span>
               <ImagensProduto
@@ -336,9 +377,6 @@ export default function ProdutoFormPage() {
               />
             </div>
           </div>
-          <p className="ficha-nota">
-            <span aria-hidden="true">*</span> Obrigatório.
-          </p>
         </div>
 
         <div className="pagina-barra">

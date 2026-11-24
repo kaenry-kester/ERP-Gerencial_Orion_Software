@@ -185,3 +185,125 @@
   width: 100%;
   margin: 0 0 0.5rem;
 }
+
+/* ---------- Foto do produto ampliada (lista de produtos) ---------- */
+
+.imagem-ampliada {
+  width: min(900px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(11, 10, 9, 0.35);
+  color: var(--texto);
+}
+
+.imagem-ampliada[open] {
+  display: flex;
+  flex-direction: column;
+  animation: imagem-ampliada-abrir 0.2s ease;
+}
+
+@keyframes imagem-ampliada-abrir {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.imagem-ampliada::backdrop {
+  background: rgba(11, 10, 9, 0.65);
+}
+
+.imagem-ampliada-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.8rem 0.6rem 1.1rem;
+  background: var(--grad-marinho);
+  color: #fff;
+}
+
+.imagem-ampliada-topo span {
+  opacity: 0.85;
+}
+
+.imagem-ampliada-fechar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.imagem-ampliada-fechar:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.imagem-ampliada-foto {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 1rem;
+}
+
+.imagem-ampliada-foto img {
+  max-width: 100%;
+  max-height: calc(100dvh - 8rem);
+  object-fit: contain;
+}
+
+/* Setas para passar entre as fotos do produto */
+.imagem-ampliada-seta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(15, 66, 85, 0.75);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.imagem-ampliada-seta:hover {
+  background: rgba(15, 66, 85, 0.95);
+}
+
+.imagem-ampliada-seta.anterior {
+  left: 0.75rem;
+}
+
+.imagem-ampliada-seta.proxima {
+  right: 0.75rem;
+}
+
+/* A seta do ícone aponta para baixo: gira para o lado (o desenho fica no centro do círculo) */
+.imagem-ampliada-seta svg {
+  display: block;
+}
+
+.imagem-ampliada-seta.anterior svg {
+  transform: rotate(90deg);
+}
+
+.imagem-ampliada-seta.proxima svg {
+  transform: rotate(-90deg);
+}

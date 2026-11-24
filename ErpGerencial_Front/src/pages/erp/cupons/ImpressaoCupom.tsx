@@ -20,7 +20,11 @@ export function CupomTermico({ cupom, logoUrl }: { cupom: Cupom; logoUrl?: strin
         {logoUrl && <img src={logoUrl} alt="" className="ct-logo" />}
         <p className="ct-empresa">{cupom.emitenteNome}</p>
         {cupom.emitenteRazaoSocial && <p>{cupom.emitenteRazaoSocial}</p>}
-        {cupom.emitenteDocumento && <p>CNPJ/CPF: {formatarDocumento(cupom.emitenteDocumento)}</p>}
+        {cupom.emitenteDocumento && (
+          <p>
+            {cupom.emitenteDocumento.length === 11 ? 'CPF' : 'CNPJ'}: {formatarDocumento(cupom.emitenteDocumento)}
+          </p>
+        )}
         {enderecoEmitente && <p>{enderecoEmitente}</p>}
         {cupom.emitenteTelefone && <p>Tel.: {formatarTelefone(cupom.emitenteTelefone)}</p>}
       </header>

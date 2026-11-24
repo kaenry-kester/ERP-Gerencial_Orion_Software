@@ -14,11 +14,17 @@ const SITUACAO: Record<MensagemHoje['situacao'], { rotulo: string; classe: strin
   agendada: { rotulo: '⏰ Em aguardo', classe: 'agendada' },
 }
 
-const hora = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+/** Horário de hoje; mensagem atrasada (marcada para outro dia, ainda na fila): o dia em que estava marcada. */
+const hora = (iso: string) => {
+  const data = new Date(iso)
+  return data.toDateString() === new Date().toDateString()
+    ? data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
 
 /**
- * Mini tela da tela inicial: as mensagens automáticas PROGRAMADAS para hoje, uma linha por cliente, em ordem de
- * horário (amanhã a lista recomeça com as de amanhã). Clicar no nome abre o cliente.
+ * Mini tela da tela inicial: as mensagens automáticas de hoje (programadas para hoje, enviadas hoje e as atrasadas
+ * ainda na fila), uma linha por cliente, em ordem de horário (amanhã a lista recomeça). Clicar no nome abre o cliente.
  */
 export default function MensagensHoje() {
   const { sessao } = useErp()

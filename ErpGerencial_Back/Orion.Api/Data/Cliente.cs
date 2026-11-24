@@ -47,6 +47,9 @@ public class Cliente
     public string? Modelo { get; set; }
     public string? Observacao { get; set; }
 
+    /// <summary>Valor em R$ (opcional), ao lado do aparelho.</summary>
+    public decimal? Valor { get; set; }
+
     /// <summary>Dia da compra do produto.</summary>
     public DateOnly? DataCompra { get; set; }
 

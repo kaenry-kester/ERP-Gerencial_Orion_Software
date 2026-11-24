@@ -40,7 +40,9 @@ public record ClienteRequest(
     string? Item = null,
     string? Marca = null,
     string? Modelo = null,
-    string? Observacao = null);
+    string? Observacao = null,
+    /// <summary>Valor em R$ (opcional), ao lado do aparelho.</summary>
+    decimal? Valor = null);
 
 /// <summary>Mensagem personalizada de um cliente (vazia: volta a usar a mensagem padrão da empresa).</summary>
 public record MensagemClienteRequest(string? Mensagem);
@@ -85,7 +87,8 @@ public record ClienteDto(
     string? Item,
     string? Marca,
     string? Modelo,
-    string? Observacao);
+    string? Observacao,
+    decimal? Valor);
 
 public record ListaClientes(List<ClienteDto> Itens, int Total, int Pagina, int TamanhoPagina);
 
@@ -371,6 +374,8 @@ public static class ClienteEndpoints
         Tamanho("marca", req.Marca, 80);
         Tamanho("modelo", req.Modelo, 80);
         Tamanho("observacao", req.Observacao, 2000);
+        if (req.Valor is < 0) erros["valor"] = ["Não pode ser negativo"];
+        else if (req.Valor is > 999_999_999_999m) erros["valor"] = ["Valor muito alto"];
         Tamanho("logradouro", req.Logradouro, 150);
         Tamanho("numeroEndereco", req.NumeroEndereco, 20);
         Tamanho("complemento", req.Complemento, 100);
@@ -406,6 +411,7 @@ public static class ClienteEndpoints
         c.Marca = Opcional(req.Marca);
         c.Modelo = Opcional(req.Modelo);
         c.Observacao = Opcional(req.Observacao);
+        c.Valor = req.Valor is { } valor ? Math.Round(valor, 2) : null;
         c.DataCompra = req.DataCompra;
         c.Cep = Opcional(SoDigitos(req.Cep));
         c.Logradouro = Opcional(req.Logradouro);
@@ -478,5 +484,5 @@ public static class ClienteEndpoints
         new(c.Id, c.Numero, c.Nome, c.Celular, c.Documento, c.Produto, c.RgInscricao, c.DataNascimento, c.PontoReferencia,
             c.TelefoneResidencial, c.TelefoneComercial, c.Celular2, c.Conjuge, c.DataCompra, c.Cep, c.Logradouro, c.NumeroEndereco, c.Complemento,
             c.Bairro, c.Cidade, c.Uf, c.TipoIntervalo, c.IntervaloQuantidade, c.IntervaloUnidade, Proxima(c), c.MensagemWhatsapp,
-            c.EnvioEm, fotoId, mensagemImagemId, c.CriadoEm, c.AtualizadoEm, c.Item, c.Marca, c.Modelo, c.Observacao);
+            c.EnvioEm, fotoId, mensagemImagemId, c.CriadoEm, c.AtualizadoEm, c.Item, c.Marca, c.Modelo, c.Observacao, c.Valor);
 }

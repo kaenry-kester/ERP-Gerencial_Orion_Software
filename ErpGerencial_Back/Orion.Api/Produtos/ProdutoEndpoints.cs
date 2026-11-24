@@ -20,7 +20,11 @@ public record ProdutoRequest(
     string? Voltagem,
     string? Observacao,
     string? Unidade = null,
-    decimal? EstoqueMinimo = null);
+    decimal? EstoqueMinimo = null,
+    string? FornecedorNome = null,
+    string? FornecedorTelefone = null,
+    string? TelefoneComercial = null,
+    decimal? PrecoVendaTrocaResidencia = null);
 
 public record ProdutoDto(
     Guid Id,
@@ -44,7 +48,11 @@ public record ProdutoDto(
     string Unidade,
     decimal EstoqueMinimo,
     /// <summary>Quantidade no mínimo ou abaixo dele.</summary>
-    bool EstoqueBaixo);
+    bool EstoqueBaixo,
+    string? FornecedorNome,
+    string? FornecedorTelefone,
+    string? TelefoneComercial,
+    decimal PrecoVendaTrocaResidencia);
 
 public record ListaProdutos(List<ProdutoDto> Itens, int Total, int Pagina, int TamanhoPagina);
 
@@ -235,8 +243,18 @@ public static class ProdutoEndpoints
         Valor("precoCusto", req.PrecoCusto);
         Valor("precoVendaPf", req.PrecoVendaPf);
         Valor("precoVendaPj", req.PrecoVendaPj);
+        Valor("precoVendaTrocaResidencia", req.PrecoVendaTrocaResidencia);
         if (req.Quantidade is < -999_999_999m or > 999_999_999m) erros["quantidade"] = ["Quantidade inválida"];
         Valor("estoqueMinimo", req.EstoqueMinimo);
+
+        Tamanho("fornecedorNome", req.FornecedorNome, 120);
+        void Telefone(string campo, string? valor)
+        {
+            var digitos = Validacao.Telefone(valor);
+            if (digitos.Length > 0 && digitos.Length is not (10 or 11)) erros[campo] = ["Telefone com DDD (10 ou 11 números)"];
+        }
+        Telefone("fornecedorTelefone", req.FornecedorTelefone);
+        Telefone("telefoneComercial", req.TelefoneComercial);
 
         var unidade = req.Unidade?.Trim() ?? "";
         if (unidade.Length > 6) erros["unidade"] = ["Máximo de 6 letras"];
@@ -252,6 +270,7 @@ public static class ProdutoEndpoints
         p.PrecoCusto = Math.Round(req.PrecoCusto ?? 0, 2);
         p.PrecoVendaPf = Math.Round(req.PrecoVendaPf ?? 0, 2);
         p.PrecoVendaPj = Math.Round(req.PrecoVendaPj ?? 0, 2);
+        p.PrecoVendaTrocaResidencia = Math.Round(req.PrecoVendaTrocaResidencia ?? 0, 2);
         p.Quantidade = Math.Round(req.Quantidade ?? 0, 3);
         p.Marca = Opcional(req.Marca);
         p.Modelo = Opcional(req.Modelo);
@@ -260,12 +279,16 @@ public static class ProdutoEndpoints
         p.Observacao = Opcional(req.Observacao);
         p.Unidade = Opcional(req.Unidade)?.ToUpperInvariant() ?? "UN";
         p.EstoqueMinimo = Math.Round(req.EstoqueMinimo ?? 0, 3);
+        p.FornecedorNome = Opcional(req.FornecedorNome);
+        p.FornecedorTelefone = Opcional(Validacao.Telefone(req.FornecedorTelefone));
+        p.TelefoneComercial = Opcional(Validacao.Telefone(req.TelefoneComercial));
     }
 
     private static ProdutoDto Dto(Produto p, List<Guid>? imagens) =>
         new(p.Id, p.Numero, p.Nome, p.Codigo, p.CodigoBarras, p.PrecoCusto, p.PrecoVendaPf, p.PrecoVendaPj, p.Quantidade,
             p.Marca, p.Modelo, p.Cor, p.Voltagem, p.Observacao, p.CriadoEm, p.AtualizadoEm, imagens ?? [],
-            p.Unidade, p.EstoqueMinimo, Estoque.Baixo(p));
+            p.Unidade, p.EstoqueMinimo, Estoque.Baixo(p), p.FornecedorNome, p.FornecedorTelefone, p.TelefoneComercial,
+            p.PrecoVendaTrocaResidencia);
 
     private static async Task<ProdutoDto> DtoComImagens(OrionDbContext db, Produto p) =>
         Dto(p, (await ProdutoImagemEndpoints.IdsPorProduto(db, [p.Id])).GetValueOrDefault(p.Id));

@@ -1,4 +1,7 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Orion.Api.Data;
 using Orion.Api.Tests.Infra;
 
 namespace Orion.Api.Tests;
@@ -61,5 +64,44 @@ public class WhatsAppConexaoTests(ApiDeTeste api)
         Assert.DoesNotContain(itens, i => i.GetProperty("nome").GetString() == "João da Semana");
         // Uma linha por cliente (sem repetir)
         Assert.Equal(itens.Count, itens.Select(i => i.GetProperty("clienteId").GetString()).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Tela_inicial_mostra_o_que_saiu_hoje_mesmo_marcado_para_outro_dia()
+    {
+        var conta = await api.NovaConta();
+        var http = conta.Http;
+        var atrasada = await http.Post("/api/clientes", new { nome = "Rita Atrasada", celular = "16988883333" });
+        var enviada = await http.Post("/api/clientes", new { nome = "Paulo Enviado", celular = "16988884444" });
+        var idAtrasada = Guid.Parse(atrasada.Texto("id"));
+        var idEnviada = Guid.Parse(enviada.Texto("id"));
+
+        using (var escopo = api.Services.CreateScope())
+        {
+            var db = escopo.ServiceProvider.GetRequiredService<OrionDbContext>();
+            var ontem = DateTime.UtcNow.AddDays(-1);
+            // Marcada para ontem (Órion fechado): continua na fila hoje
+            await db.Clientes.Where(c => c.Id == idAtrasada)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.EnvioEm, ontem));
+            // Marcada para ontem, mas saiu agora (quando o Órion abriu)
+            var cliente = await db.Clientes.SingleAsync(c => c.Id == idEnviada);
+            db.EnviosWhatsapp.Add(new EnvioWhatsapp
+            {
+                EmpresaId = cliente.EmpresaId,
+                ClienteId = cliente.Id,
+                DataReferencia = DateOnly.FromDateTime(Orion.Api.Horario.Local(ontem)),
+                Tipo = "agendado",
+                Telefone = cliente.Celular,
+                Mensagem = "Olá",
+                Status = "enviado",
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var itens = (await http.Get("/api/whatsapp/hoje")).Json.EnumerateArray().ToList();
+        Assert.Equal("enviada", itens.Single(i => i.GetProperty("nome").GetString() == "Paulo Enviado")
+            .GetProperty("situacao").GetString());
+        Assert.Equal("agendada", itens.Single(i => i.GetProperty("nome").GetString() == "Rita Atrasada")
+            .GetProperty("situacao").GetString());
     }
 }

@@ -75,6 +75,7 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             e.Property(p => p.PrecoCusto).HasColumnName("preco_custo").HasPrecision(14, 2);
             e.Property(p => p.PrecoVendaPf).HasColumnName("preco_venda_pf").HasPrecision(14, 2);
             e.Property(p => p.PrecoVendaPj).HasColumnName("preco_venda_pj").HasPrecision(14, 2);
+            e.Property(p => p.PrecoVendaTrocaResidencia).HasColumnName("preco_venda_troca_residencia").HasPrecision(14, 2);
             e.Property(p => p.Quantidade).HasColumnName("quantidade").HasPrecision(14, 3);
             e.Property(p => p.Marca).HasColumnName("marca").HasMaxLength(80);
             e.Property(p => p.Modelo).HasColumnName("modelo").HasMaxLength(80);
@@ -83,6 +84,9 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             e.Property(p => p.Observacao).HasColumnName("observacao").HasMaxLength(2000);
             e.Property(p => p.Unidade).HasColumnName("unidade").HasMaxLength(6).HasDefaultValue("UN");
             e.Property(p => p.EstoqueMinimo).HasColumnName("estoque_minimo").HasPrecision(14, 3);
+            e.Property(p => p.FornecedorNome).HasColumnName("fornecedor_nome").HasMaxLength(120);
+            e.Property(p => p.FornecedorTelefone).HasColumnName("fornecedor_telefone").HasMaxLength(20);
+            e.Property(p => p.TelefoneComercial).HasColumnName("telefone_comercial").HasMaxLength(20);
             e.Property(p => p.CriadoEm).HasColumnName("criado_em");
             e.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
             // ID sequencial, código e código de barras não se repetem dentro da mesma empresa.
@@ -127,6 +131,7 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             e.Property(c => c.Marca).HasColumnName("marca").HasMaxLength(80);
             e.Property(c => c.Modelo).HasColumnName("modelo").HasMaxLength(80);
             e.Property(c => c.Observacao).HasColumnName("observacao").HasMaxLength(2000);
+            e.Property(c => c.Valor).HasColumnName("valor").HasPrecision(14, 2);
             e.Property(c => c.DataCompra).HasColumnName("data_compra");
             e.Property(c => c.Cep).HasColumnName("cep").HasMaxLength(8);
             e.Property(c => c.Logradouro).HasColumnName("logradouro").HasMaxLength(150);
@@ -276,6 +281,10 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             e.Property(o => o.ClienteId).HasColumnName("cliente_id");
             e.Property(o => o.ClienteNome).HasColumnName("cliente_nome").HasMaxLength(200);
             e.Property(o => o.Observacao).HasColumnName("observacao").HasMaxLength(1000);
+            e.Property(o => o.ClienteEndereco).HasColumnName("cliente_endereco").HasMaxLength(300);
+            e.Property(o => o.ClienteTelefone).HasColumnName("cliente_telefone").HasMaxLength(30);
+            e.Property(o => o.Data).HasColumnName("data");
+            e.Property(o => o.Condicoes).HasColumnName("condicoes").HasMaxLength(1000);
             e.Property(o => o.Total).HasColumnName("total").HasPrecision(14, 2);
             e.Property(o => o.Situacao).HasColumnName("situacao").HasMaxLength(12);
             e.Property(o => o.CupomId).HasColumnName("cupom_id");

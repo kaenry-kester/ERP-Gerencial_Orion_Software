@@ -133,4 +133,84 @@ public class OrcamentoTests(ApiDeTeste api)
         Assert.Equal(pdf, midia.GetProperty("media").GetString());
         Assert.Contains("João", midia.GetProperty("caption").GetString());
     }
+
+    [Fact]
+    public async Task Folha_do_orcamento_guarda_endereco_telefone_data_e_condicoes()
+    {
+        var http = (await api.NovaConta()).Http;
+        var criado = await http.Post("/api/orcamentos", new
+        {
+            clienteNome = "Carlos",
+            clienteEndereco = "Rua A, 10 - Centro",
+            clienteTelefone = "(16) 99111-2222",
+            data = "2026-10-31",
+            condicoes = "À vista ou até 3 vezes sem juros no cartão - Orçamento válido por 10 dias",
+            itens = new[] { Linha("Filtro", 21, 2) },
+        });
+        Assert.Equal(HttpStatusCode.Created, criado.Status);
+        var lido = await http.Get($"/api/orcamentos/{criado.Texto("id")}");
+        Assert.Equal("Rua A, 10 - Centro", lido.Texto("clienteEndereco"));
+        Assert.Equal("(16) 99111-2222", lido.Texto("clienteTelefone"));
+        Assert.Equal("2026-10-31", lido.Texto("data"));
+        Assert.StartsWith("À vista", lido.Texto("condicoes"));
+        Assert.Equal(42m, lido.Decimal("total"));
+
+        // Ao finalizar, o endereço da folha vai para o cupom
+        var finalizado = await http.Post($"/api/orcamentos/{criado.Texto("id")}/finalizar", new { formaPagamento = "pix" });
+        var cupom = await http.Get($"/api/cupons/{finalizado.Texto("cupomId")}");
+        Assert.Equal("Rua A, 10 - Centro", cupom.Texto("clienteEndereco"));
+    }
+
+    [Fact]
+    public async Task Produto_guarda_o_fornecedor_e_os_telefones()
+    {
+        var http = (await api.NovaConta()).Http;
+        var produto = await http.Post("/api/produtos", new
+        {
+            nome = "Refil",
+            fornecedorNome = "Distribuidora X",
+            fornecedorTelefone = "(16) 99888-7777",
+            telefoneComercial = "(16) 3333-4444",
+        });
+        Assert.Equal(HttpStatusCode.Created, produto.Status);
+        Assert.Equal("Distribuidora X", produto.Texto("fornecedorNome"));
+        Assert.Equal("16998887777", produto.Texto("fornecedorTelefone"));
+        Assert.Equal("1633334444", produto.Texto("telefoneComercial"));
+
+        var incompleto = await http.Post("/api/produtos", new { nome = "Outro", fornecedorTelefone = "9988" });
+        Assert.Equal(HttpStatusCode.BadRequest, incompleto.Status);
+    }
+
+    [Fact]
+    public async Task Encaminha_o_pdf_do_orcamento_pelo_whatsapp_da_loja()
+    {
+        var http = (await api.NovaConta()).Http;
+        var cliente = await http.Post("/api/clientes", new { nome = "Ana Cliente", celular = "16993334444" });
+        Assert.Equal(HttpStatusCode.Created, cliente.Status);
+        var orcamento = await http.Post("/api/orcamentos", new
+        {
+            clienteId = cliente.Texto("id"),
+            clienteNome = "Ana Cliente",
+            itens = new[] { Linha("Troca de refil", 80, 1) },
+        });
+        var rota = $"/api/orcamentos/{orcamento.Texto("id")}/whatsapp";
+        var pdf = Convert.ToBase64String("%PDF-1.4 orcamento"u8.ToArray());
+
+        // Sem o WhatsApp da loja salvo: avisa
+        Assert.Equal(HttpStatusCode.BadRequest, (await http.Post(rota, new { pdf })).Status);
+
+        await http.Put("/api/whatsapp", new { remetente = $"169{Random.Shared.Next(10000000, 99999999)}", mensagem = "Olá" });
+        Assert.Equal(HttpStatusCode.BadRequest, (await http.Post(rota, new { pdf = "isto não é um pdf" })).Status);
+
+        // Sem número: vai para o celular do cliente do orçamento; com número: para ele
+        var enviado = await http.Post(rota, new { pdf });
+        Assert.Equal(HttpStatusCode.OK, enviado.Status);
+        Assert.Equal("16993334444", enviado.Texto("numero"));
+        var outro = await http.Post(rota, new { pdf, numero = "(16) 99555-6666" });
+        Assert.Equal("16995556666", outro.Texto("numero"));
+        var midia = api.Evolution.Midias.Last(m => m.GetProperty("number").GetString()!.StartsWith("5516993334444"));
+        Assert.Equal("application/pdf", midia.GetProperty("mimetype").GetString());
+        Assert.Contains("orçamento", midia.GetProperty("caption").GetString());
+        Assert.Contains("orcamento-", midia.GetProperty("fileName").GetString());
+    }
 }

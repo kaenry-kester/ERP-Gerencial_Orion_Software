@@ -12,8 +12,10 @@ import {
   mensagemDe,
   obterCliente,
   obterCupom,
+  obterEmpresa,
   rotuloPagamento,
   type Cupom,
+  type Empresa,
 } from '../../../services/api'
 import { formatarMoeda, formatarTelefone, telefoneValido } from '../../../utils/validacao'
 import AvisoPagina from '../AvisoPagina'
@@ -32,6 +34,19 @@ import './cupons.css'
 
 const MODULO = MODULOS.find((m) => m.id === 'cupom-fiscal')!
 
+/** CNPJ, endereço e telefone da loja que faltaram no cupom (emitido antes do cadastro) vêm do cadastro atual. */
+const comDadosDaLoja = (cupom: Cupom, empresa: Empresa | null): Cupom =>
+  !empresa
+    ? cupom
+    : {
+        ...cupom,
+        emitenteDocumento: cupom.emitenteDocumento ?? empresa.documento,
+        emitenteEndereco: cupom.emitenteEndereco ?? empresa.endereco,
+        emitenteCidade: cupom.emitenteCidade ?? empresa.cidade,
+        emitenteUf: cupom.emitenteUf ?? empresa.uf,
+        emitenteTelefone: cupom.emitenteTelefone ?? empresa.telefone,
+      }
+
 const dataHora = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
 // Cupom emitido: pré-visualização do papel, imprimir (80 mm), baixar em PDF, encaminhar pelo WhatsApp e cancelar.
@@ -40,13 +55,16 @@ export default function CupomPage() {
   const { sessao } = useErp()
   const sessaoExpirada = useSessaoExpirada()
   const [cupom, setCupom] = useState<Cupom | null>(null)
+  // Cupom emitido antes de a loja ter CNPJ/endereço cadastrados: completa com o cadastro atual da empresa
+  const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [aviso, setAviso] = useState<Aviso>(null)
   const [cancelando, setCancelando] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [erroMotivo, setErroMotivo] = useState<string>()
   const [enviandoCancelamento, setEnviandoCancelamento] = useState(false)
   // Logo da loja no topo do cupom
-  const { imprimir, imprimindo, elemento } = useImpressao(cupom, LOGO_HORIZONTAL)
+  const papel = cupom && comDadosDaLoja(cupom, empresa)
+  const { imprimir, imprimindo, elemento } = useImpressao(papel && <CupomTermico cupom={papel} logoUrl={LOGO_HORIZONTAL} />)
   const podeVer = podeAcessar(sessao.usuario, MODULO)
   // PDF: o cupom montado fora da tela (mesmo desenho do impresso) é fotografado e vira o arquivo
   const papelPdf = useRef<HTMLDivElement>(null)
@@ -64,6 +82,9 @@ export default function CupomPage() {
     obterCupom(sessao.token, id!)
       .then((c) => ativo && setCupom(c))
       .catch((e) => ativo && !sessaoExpirada(e) && setAviso({ tipo: 'erro', texto: mensagemDe(e) }))
+    obterEmpresa(sessao.token)
+      .then((e) => ativo && setEmpresa(e))
+      .catch(() => {})
     return () => {
       ativo = false
     }
@@ -327,7 +348,7 @@ export default function CupomPage() {
 
           {/* Como vai sair no papel */}
           <section className="cupom-papel cupom-papel-cupom" aria-label="Pré-visualização">
-            <CupomTermico cupom={cupom} logoUrl={LOGO_HORIZONTAL} />
+            <CupomTermico cupom={papel!} logoUrl={LOGO_HORIZONTAL} />
           </section>
         </div>
       </div>
@@ -337,7 +358,7 @@ export default function CupomPage() {
       {/* Cupom para o PDF: fora da tela, com margem branca em volta */}
       <div className="impressao" aria-hidden="true">
         <div ref={papelPdf} className="cupom-pdf-papel">
-          <CupomTermico cupom={cupom} logoUrl={LOGO_HORIZONTAL} />
+          <CupomTermico cupom={papel!} logoUrl={LOGO_HORIZONTAL} />
         </div>
       </div>
     </div>

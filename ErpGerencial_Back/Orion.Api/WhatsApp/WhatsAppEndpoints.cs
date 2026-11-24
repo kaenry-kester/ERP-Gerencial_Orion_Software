@@ -187,13 +187,16 @@ public static class WhatsAppEndpoints
         var inicio = Horario.InicioDoDiaUtc(hoje);
         var fim = Horario.InicioDoDiaUtc(hoje.AddDays(1));
 
-        // Só o que foi PROGRAMADO para hoje (o dia da mensagem, não o dia da tentativa): amanhã a lista recomeça.
+        // O que foi programado para hoje e também o que SAIU hoje: com o Órion fechado (noite, fim de semana),
+        // a mensagem marcada para outro dia sai quando ele abre e tem de aparecer no dia em que saiu.
         var tentativas = await db.EnviosWhatsapp
-            .Where(w => w.EmpresaId == usuario.EmpresaId && w.DataReferencia == hoje)
+            .Where(w => w.EmpresaId == usuario.EmpresaId
+                && (w.DataReferencia == hoje || (w.CriadoEm >= inicio && w.CriadoEm < fim)))
             .Select(w => new { w.ClienteId, Nome = w.Cliente!.Nome, w.Telefone, w.CriadoEm, w.Status, w.Erro })
             .ToListAsync();
+        // Na fila: as de hoje e as atrasadas (saem assim que o WhatsApp estiver conectado)
         var pendentes = await db.Clientes
-            .Where(c => c.EmpresaId == usuario.EmpresaId && c.EnvioEm >= inicio && c.EnvioEm < fim)
+            .Where(c => c.EmpresaId == usuario.EmpresaId && c.EnvioEm != null && c.EnvioEm < fim)
             .Select(c => new { c.Id, c.Nome, c.Celular, EnvioEm = c.EnvioEm!.Value })
             .ToDictionaryAsync(c => c.Id);
 

@@ -13,6 +13,7 @@ import FaixaPagina from '../FaixaPagina'
 import { useErp } from '../contexto'
 import { MODULOS, podeAcessar, tem } from '../modulos'
 import SemAcesso from '../SemAcesso'
+import ImagemAmpliada from './ImagemAmpliada'
 import './estoque.css'
 
 const MODULO = MODULOS.find((m) => m.id === 'produtos')!
@@ -28,6 +29,8 @@ export default function ProdutosPage() {
   const [lista, setLista] = useState<ListaProdutos | null>(null)
   const [aviso, setAviso] = useState<Aviso>((useLocation().state as { aviso?: Aviso } | null)?.aviso ?? null)
   const podeVer = podeAcessar(sessao.usuario, MODULO)
+  // Foto clicada na lista, aberta em tamanho grande
+  const [ampliado, setAmpliado] = useState<{ nome: string; imagens: string[] } | null>(null)
 
   // Busca enquanto digita, esperando a pessoa parar por um instante
   useEffect(() => {
@@ -162,9 +165,19 @@ export default function ProdutosPage() {
                     <tr key={p.id} onClick={() => navigate(`/app/produtos/${p.id}`)}>
                       <td className="lista-capa">
                         {p.imagens?.length ? (
-                          <span className="lista-capa-imagem">
+                          // Clicar na foto amplia (não abre o produto)
+                          <button
+                            type="button"
+                            className="lista-capa-imagem ampliar"
+                            title="Ver a foto maior"
+                            aria-label={`Ver a foto de ${p.nome} maior`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAmpliado({ nome: p.nome, imagens: p.imagens })
+                            }}
+                          >
                             <img src={urlImagemProduto(p.imagens[0])} alt="" loading="lazy" decoding="async" />
-                          </span>
+                          </button>
                         ) : (
                           <span className="lista-capa-imagem vazia" title="Sem imagem">
                             <IconeCaixa tamanho={18} />
@@ -234,6 +247,8 @@ export default function ProdutosPage() {
           </>
         )}
       </div>
+
+      <ImagemAmpliada produto={ampliado} onFechar={() => setAmpliado(null)} />
     </div>
   )
 }

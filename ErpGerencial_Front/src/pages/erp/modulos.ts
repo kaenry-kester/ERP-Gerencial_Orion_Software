@@ -48,9 +48,14 @@ export type Modulo = {
   rotuloBotao?: string
   /** Versão ainda mais curta, para celulares estreitos. */
   rotuloCurto?: string
-  /** Botão de cadastro mostrado logo acima do botão grande, na tela inicial (para quem tem a permissão). */
-  cadastro?: { rotulo: string; para: string; permissao: string }
+  /**
+   * Botão pequeno logo acima do botão grande, na tela inicial (para quem tem a permissão):
+   * o cadastro (com "+") ou, com Icone, a lista do módulo.
+   */
+  cadastro?: { rotulo: string; para: string; permissao: string; Icone?: Desenho }
   acesso: Acesso
+  /** Para onde o botão grande leva, quando não é /app/<id> (ex.: Cupons abre direto o cupom novo). */
+  entrada?: string
   /** Permissão que libera o módulo, quando não é o próprio id (ex.: Orçamento usa a de cupons). */
   permissao?: string
 }
@@ -94,7 +99,9 @@ export const MODULOS_PRINCIPAIS: Modulo[] = [
     descricao: 'Cupons de venda e recibos (não fiscais), com impressão.',
     Icone: IconeRecibo,
     Ilustracao: IlustracaoCupomFiscal,
-    // Sem atalho acima do bloco: "Emitir cupom" fica na faixa do topo da tela principal
+    // O botão grande abre direto o cupom novo; a lista dos emitidos fica no botão pequeno de cima
+    entrada: '/app/cupom-fiscal/novo',
+    cadastro: { rotulo: 'Ver cupons', para: '/app/cupom-fiscal', permissao: 'cupom-fiscal', Icone: IconeRecibo },
     acesso: 'permissao',
   },
   {
@@ -104,7 +111,9 @@ export const MODULOS_PRINCIPAIS: Modulo[] = [
     descricao: 'Monte o orçamento e, ao finalizar, gere o cupom.',
     Icone: IconeOrcamento,
     Ilustracao: IlustracaoOrcamento,
-    cadastro: { rotulo: 'Novo orçamento', para: '/app/orcamento/novo', permissao: 'cupom-fiscal' },
+    // O botão grande abre direto o orçamento novo; a lista fica no botão pequeno de cima
+    cadastro: { rotulo: 'Ver orçamentos', para: '/app/orcamento', permissao: 'cupom-fiscal', Icone: IconeOrcamento },
+    entrada: '/app/orcamento/novo',
     acesso: 'permissao',
     permissao: 'cupom-fiscal',
   },
@@ -156,7 +165,7 @@ export const PREFERENCIAS: Modulo[] = [
 
 export const MODULOS: Modulo[] = [...MODULOS_PRINCIPAIS, ...PREFERENCIAS]
 
-export const caminhoDo = (modulo: Pick<Modulo, 'id'>) => `/app/${modulo.id}`
+export const caminhoDo = (modulo: Pick<Modulo, 'id' | 'entrada'>) => modulo.entrada ?? `/app/${modulo.id}`
 
 /** O usuário pode abrir o módulo? (o servidor confere de novo em cada rota) */
 export function podeAcessar(usuario: Usuario, modulo: Modulo) {

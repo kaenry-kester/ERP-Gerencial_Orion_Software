@@ -888,8 +888,8 @@
 
 .cliente-detalhe {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
-  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 1.25rem;
   align-items: start;
 }
 
@@ -897,6 +897,25 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Só para ver: fonte um pouco menor e o texto quebra a linha em vez de cortar (telefones e nomes aparecem inteiros) */
+.cliente-detalhe-ficha .ficha-rotulo {
+  font-size: 0.74rem;
+  white-space: normal;
+}
+
+.cliente-detalhe-ficha .ficha-valor {
+  padding-block: 0.3rem;
+  font-size: 0.82rem;
+}
+
+/* Quebra nos espaços (ex.: "(16) | 99999-9999"); só parte uma palavra se ela sozinha não couber */
+.cliente-detalhe-ficha .ficha-valor > span {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 /* Painel do WhatsApp: superfície clara do tema, sem borda */

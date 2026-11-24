@@ -117,8 +117,17 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePages();
 
 // Site já compilado (npm run build:api coloca em wwwroot): a API serve o site no mesmo endereço.
+// O index.html nunca fica guardado no navegador: assim uma versão nova aparece na hora (os assets têm nome com hash).
+var siteSemCache = new StaticFileOptions
+{
+    OnPrepareResponse = c =>
+    {
+        if (c.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            c.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+    },
+};
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(siteSemCache);
 
 app.UseCors();
 app.UseRateLimiter();
@@ -145,7 +154,7 @@ app.MapGet("/api/saude", async (OrionDbContext db, CancellationToken ct) =>
         : Results.Json(new { status = "erro", banco = "sem conexão" }, statusCode: StatusCodes.Status503ServiceUnavailable));
 
 // Rotas do site (ex.: /app/produtos) abrem o index.html; as da API continuam respondendo 404 quando não existem.
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", siteSemCache);
 app.MapFallback("/api/{**resto}", () => Results.NotFound());
 app.MapFinanceiroEndpoints();
 app.MapHistoricoEndpoints();

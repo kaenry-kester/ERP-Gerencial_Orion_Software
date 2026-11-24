@@ -220,6 +220,8 @@ export type Produto = {
   precoCusto: number
   precoVendaPf: number
   precoVendaPj: number
+  /** Preço da venda com troca na residência do cliente. */
+  precoVendaTrocaResidencia: number
   quantidade: number
   marca: string | null
   modelo: string | null
@@ -235,6 +237,11 @@ export type Produto = {
   estoqueMinimo: number
   /** Quantidade no mínimo ou abaixo dele. */
   estoqueBaixo: boolean
+  fornecedorNome: string | null
+  /** WhatsApp do fornecedor (só dígitos, com DDD). */
+  fornecedorTelefone: string | null
+  /** Telefone comercial do fornecedor (só dígitos, com DDD). */
+  telefoneComercial: string | null
 }
 
 export type DadosProduto = {
@@ -244,6 +251,7 @@ export type DadosProduto = {
   precoCusto: number | null
   precoVendaPf: number | null
   precoVendaPj: number | null
+  precoVendaTrocaResidencia: number | null
   quantidade: number | null
   marca: string
   modelo: string
@@ -252,6 +260,9 @@ export type DadosProduto = {
   observacao: string
   unidade: string
   estoqueMinimo: number | null
+  fornecedorNome: string
+  fornecedorTelefone: string
+  telefoneComercial: string
 }
 
 export type ListaProdutos = { itens: Produto[]; total: number; pagina: number; tamanhoPagina: number }
@@ -367,6 +378,8 @@ export type Cliente = {
   marca: string | null
   modelo: string | null
   observacao: string | null
+  /** Valor em R$ (opcional). */
+  valor: number | null
 }
 
 export type DadosCliente = {
@@ -403,6 +416,7 @@ export type DadosCliente = {
   marca: string
   modelo: string
   observacao: string
+  valor: number | null
 }
 
 export type TipoIntervalo = 'meses' | 'data'
@@ -515,6 +529,13 @@ export const conectarWhatsapp = (token: string) => requisicao<ConexaoWhatsapp>('
 export type SituacaoBackup = { ativo: boolean; pasta: string; ultima: string | null }
 
 export const obterSituacaoBackup = (token: string) => requisicao<SituacaoBackup>('GET', '/api/sistema/backup', { token })
+
+/** Programa da loja, no próprio computador: o "Sair" pode fechar o Órion inteiro (sistema, WhatsApp e banco). */
+export const podeFecharSistema = (token: string) =>
+  requisicao<{ podeFechar: boolean }>('GET', '/api/sistema/fechar', { token })
+
+/** Faz a última cópia de segurança e fecha o Órion, o WhatsApp e o banco (os dados ficam salvos). */
+export const fecharSistema = (token: string) => requisicao<{ fechando: boolean }>('POST', '/api/sistema/fechar', { token })
 
 export type MensagemHoje = {
   clienteId: string
@@ -702,6 +723,13 @@ export type Orcamento = {
   criadoPor: string
   criadoEm: string
   atualizadoEm: string
+  /** Endereço e telefone do cliente, como digitados na folha. */
+  clienteEndereco: string | null
+  clienteTelefone: string | null
+  /** Data da folha ("2026-10-31"); null: o dia em que foi criado. */
+  data: string | null
+  /** "Formas de pagamento e condições". */
+  condicoes: string | null
 }
 
 export type DadosOrcamento = {
@@ -709,6 +737,10 @@ export type DadosOrcamento = {
   clienteNome: string | null
   observacao: string | null
   itens: { servico: string; observacao: string | null; preco: number; quantidade: number; data: string | null }[]
+  clienteEndereco: string | null
+  clienteTelefone: string | null
+  data: string | null
+  condicoes: string | null
 }
 
 export type ListaOrcamentos = { itens: Orcamento[]; total: number; pagina: number; tamanhoPagina: number }
@@ -731,6 +763,10 @@ export const excluirOrcamento = (token: string, id: string) =>
 /** Gera o cupom com os itens do orçamento. */
 export const finalizarOrcamento = (token: string, id: string, formaPagamento: FormaPagamento) =>
   requisicao<Orcamento>('POST', `/api/orcamentos/${id}/finalizar`, { corpo: { formaPagamento }, token })
+
+/** Manda o PDF do orçamento (base64) pelo WhatsApp da loja; sem número, vai para o celular do cliente do orçamento. */
+export const enviarOrcamentoWhatsapp = (token: string, id: string, pdf: string, numero: string | null) =>
+  requisicao<{ numero: string }>('POST', `/api/orcamentos/${id}/whatsapp`, { corpo: { pdf, numero }, token })
 
 export type TipoNota = 'cupom' | 'nota'
 

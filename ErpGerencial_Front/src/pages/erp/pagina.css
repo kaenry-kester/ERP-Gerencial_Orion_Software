@@ -645,9 +645,9 @@
   white-space: normal;
 }
 
-/* Miniatura da capa (lista de produtos): pequena, cabe na altura normal da linha */
+/* Miniatura da capa (lista de produtos); clicar amplia a foto */
 .lista-tabela .lista-capa {
-  width: 2rem;
+  width: 3.25rem;
   padding-block: 0.2rem;
   vertical-align: middle;
 }
@@ -655,12 +655,25 @@
 .lista-capa-imagem {
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 3.25rem;
+  height: 3.25rem;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 3px;
   background: #fff;
   color: var(--pg-cor);
+}
+
+button.lista-capa-imagem {
+  padding: 0;
+  border: none;
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button.lista-capa-imagem:hover,
+button.lista-capa-imagem:focus-visible {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(11, 30, 50, 0.22);
 }
 
 .lista-capa-imagem img {
@@ -954,12 +967,13 @@
   }
 
   .lista-tabela td.lista-capa .lista-capa-imagem {
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
   }
 
   .lista-tabela tr:has(> td.lista-capa) td.lista-principal {
-    padding-left: 2.4rem;
+    padding-left: 3.4rem;
+    min-height: 2.75rem;
   }
 }
 

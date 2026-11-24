@@ -4,12 +4,15 @@ using Npgsql;
 using Orion.Api.Auth;
 using Orion.Api.Cupons;
 using Orion.Api.Data;
+using Orion.Api.WhatsApp;
 
 namespace Orion.Api.Orcamentos;
 
 public record OrcamentoItemRequest(string? Servico, string? Observacao, decimal Preco, decimal Quantidade, DateOnly? Data);
 
-public record OrcamentoRequest(Guid? ClienteId, string? ClienteNome, string? Observacao, List<OrcamentoItemRequest>? Itens);
+public record OrcamentoRequest(
+    Guid? ClienteId, string? ClienteNome, string? Observacao, List<OrcamentoItemRequest>? Itens,
+    string? ClienteEndereco = null, string? ClienteTelefone = null, DateOnly? Data = null, string? Condicoes = null);
 
 /// <summary>Ao finalizar: como o cliente pagou (o cupom sai com o total do orçamento).</summary>
 public record FinalizarOrcamentoRequest(string FormaPagamento);
@@ -31,7 +34,11 @@ public record OrcamentoDto(
     DateTime? FinalizadoEm,
     string CriadoPor,
     DateTime CriadoEm,
-    DateTime AtualizadoEm);
+    DateTime AtualizadoEm,
+    string? ClienteEndereco,
+    string? ClienteTelefone,
+    DateOnly? Data,
+    string? Condicoes);
 
 public record ListaOrcamentos(List<OrcamentoDto> Itens, int Total, int Pagina, int TamanhoPagina);
 
@@ -54,6 +61,7 @@ public static class OrcamentoEndpoints
         grupo.MapPut("/{id:guid}", Editar);
         grupo.MapDelete("/{id:guid}", Excluir);
         grupo.MapPost("/{id:guid}/finalizar", Finalizar);
+        grupo.MapPost("/{id:guid}/whatsapp", EnviarWhatsapp);
     }
 
     /// <summary>Lista paginada, mais novos primeiro; busca pelo Nº, cliente ou serviço.</summary>
@@ -179,7 +187,7 @@ public static class OrcamentoEndpoints
             ClienteId: cliente?.Id,
             ClienteNome: orcamento.ClienteNome,
             ClienteDocumento: cliente?.Documento,
-            ClienteEndereco: cliente is null ? null : CupomEndpoints.EnderecoDo(cliente),
+            ClienteEndereco: orcamento.ClienteEndereco ?? (cliente is null ? null : CupomEndpoints.EnderecoDo(cliente)),
             Itens: orcamento.Itens.OrderBy(i => i.Ordem)
                 .Select(i => new CupomItemRequest(null, i.Servico, i.Quantidade, i.Preco, i.Observacao, i.Data))
                 .ToList(),
@@ -201,6 +209,41 @@ public static class OrcamentoEndpoints
         return Results.Ok(Dto(orcamento));
     }
 
+    /// <summary>"Encaminhar para o WhatsApp": manda o PDF do orçamento (feito pelo site) pelo WhatsApp da loja.</summary>
+    private static async Task<IResult> EnviarWhatsapp(
+        Guid id, EnviarCupomRequest req, ClaimsPrincipal user, OrionDbContext db, EvolutionApi evolution, CancellationToken ct)
+    {
+        var (usuario, negado) = await Permissoes.Exigir(user, db, Permissoes.CupomFiscal);
+        if (usuario is null) return negado!;
+        var orcamento = await db.Orcamentos.SingleOrDefaultAsync(o => o.Id == id && o.EmpresaId == usuario.EmpresaId, ct);
+        if (orcamento is null) return Results.NotFound();
+
+        var remetente = usuario.Empresa!.WhatsappRemetente;
+        if (string.IsNullOrEmpty(remetente) || !evolution.Configurada)
+            return Results.BadRequest(new { erro = "Conecte o WhatsApp da loja primeiro (Clientes → Mensagem automática)" });
+
+        var destino = Validacao.Telefone(req.Numero);
+        if (destino.Length == 0 && orcamento.ClienteId is { } clienteId)
+            destino = await db.Clientes.Where(c => c.Id == clienteId).Select(c => c.Celular).SingleOrDefaultAsync(ct) ?? "";
+        if (destino.Length is not (10 or 11)) return Erro("numero", "Digite o WhatsApp do cliente com DDD");
+
+        var pdf = CupomEndpoints.LerPdf(req.Pdf);
+        if (pdf is null) return Results.BadRequest(new { erro = "Não foi possível montar o PDF do orçamento. Tente de novo." });
+
+        var numero = orcamento.Numero.ToString("D6");
+        var nome = orcamento.ClienteNome?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var legenda = $"Olá{(nome is null ? "" : $", {nome}")}! Segue o seu orçamento Nº {numero} da {usuario.Empresa.Nome}.";
+        try
+        {
+            await evolution.EnviarDocumento(remetente, destino, legenda, pdf, "application/pdf", $"orcamento-{numero}.pdf", ct);
+        }
+        catch (ErroEnvio ex)
+        {
+            return Results.BadRequest(new { erro = ex.Message });
+        }
+        return Results.Ok(new { numero = destino });
+    }
+
     private static Task<Orcamento?> Carregar(OrionDbContext db, Guid id, Guid empresaId) =>
         db.Orcamentos.Include(o => o.Itens).SingleOrDefaultAsync(o => o.Id == id && o.EmpresaId == empresaId);
 
@@ -216,6 +259,10 @@ public static class OrcamentoEndpoints
         orcamento.ClienteId = cliente?.Id;
         orcamento.ClienteNome = Opcional(req.ClienteNome) ?? cliente?.Nome;
         orcamento.Observacao = Opcional(req.Observacao);
+        orcamento.ClienteEndereco = Opcional(req.ClienteEndereco);
+        orcamento.ClienteTelefone = Opcional(req.ClienteTelefone);
+        orcamento.Data = req.Data;
+        orcamento.Condicoes = Opcional(req.Condicoes);
 
         var posicao = 0;
         foreach (var item in req.Itens ?? [])
@@ -255,6 +302,9 @@ public static class OrcamentoEndpoints
         }
         if ((req.ClienteNome?.Trim().Length ?? 0) > 200) erros["clienteNome"] = ["Máximo de 200 letras"];
         if ((req.Observacao?.Trim().Length ?? 0) > 1000) erros["observacao"] = ["Máximo de 1000 letras"];
+        if ((req.ClienteEndereco?.Trim().Length ?? 0) > 300) erros["clienteEndereco"] = ["Máximo de 300 letras"];
+        if ((req.ClienteTelefone?.Trim().Length ?? 0) > 30) erros["clienteTelefone"] = ["Máximo de 30 letras"];
+        if ((req.Condicoes?.Trim().Length ?? 0) > 1000) erros["condicoes"] = ["Máximo de 1000 letras"];
         return erros;
     }
 
@@ -268,5 +318,6 @@ public static class OrcamentoEndpoints
         o.Itens.OrderBy(i => i.Ordem)
             .Select(i => new OrcamentoItemDto(i.Id, i.Servico, i.Observacao, i.Preco, i.Quantidade, i.Data, i.Total))
             .ToList(),
-        o.Total, o.Situacao, o.CupomId, o.CupomNumero, o.FinalizadoEm, o.CriadoPor, o.CriadoEm, o.AtualizadoEm);
+        o.Total, o.Situacao, o.CupomId, o.CupomNumero, o.FinalizadoEm, o.CriadoPor, o.CriadoEm, o.AtualizadoEm,
+        o.ClienteEndereco, o.ClienteTelefone, o.Data, o.Condicoes);
 }

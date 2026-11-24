@@ -1,32 +1,37 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { avisarSalvo } from '../../../components/aviso-salvo/avisarSalvo'
+import CampoTexto from '../../../components/formulario/CampoTexto'
 import type { Aviso } from '../../../components/formulario/FaixaAviso'
-import { IconeCheck, IconeLixeira, IconeMais } from '../../../components/icones/Icones'
+import { IconeCheck, IconeLixeira } from '../../../components/icones/Icones'
 import { IlustracaoOrcamento } from '../../../components/icones/Ilustracoes'
 import { useSessaoExpirada } from '../../../hooks/useSessaoExpirada'
 import {
   criarOrcamento,
   editarOrcamento,
+  enviarOrcamentoWhatsapp,
   excluirOrcamento,
   finalizarOrcamento,
   FORMAS_PAGAMENTO,
   listarClientes,
   mensagemDe,
+  obterCliente,
+  obterEmpresa,
   obterOrcamento,
   type Cliente,
   type DadosOrcamento,
+  type Empresa,
   type FormaPagamento,
   type Orcamento,
 } from '../../../services/api'
 import {
   formatarMoeda,
-  formatarQuantidade,
   formatarTelefone,
   mascaraMoeda,
   mascaraQuantidade,
   moedaParaNumero,
-  quantidadeParaNumero,
+  telefoneValido,
 } from '../../../utils/validacao'
 import AvisoPagina from '../AvisoPagina'
 import FaixaPagina from '../FaixaPagina'
@@ -34,52 +39,37 @@ import { useErp } from '../contexto'
 import { MODULOS, podeAcessar, tem } from '../modulos'
 import SemAcesso from '../SemAcesso'
 import { numeroCupom } from '../cupons/numero'
+import { baixarArquivo, gerarPdfCupom } from '../cupons/pdfCupom'
+import { useImpressao } from '../cupons/useImpressao'
+import { LOGO_HORIZONTAL } from '../logoLoja'
+import {
+  folhaDoOrcamento,
+  folhaNova,
+  linhaVazia,
+  novaLinha,
+  quantidadeDa,
+  totalDaFolha,
+  type CampoFolha,
+  type ColunaFolha,
+  type DadosFolha,
+} from './folha'
+import { OrcamentoFolha } from './OrcamentoFolha'
+import '../cupons/cupons.css'
 import './orcamento.css'
 
 const MODULO = MODULOS.find((m) => m.id === 'orcamento')!
 
-/** Uma linha da planilha, com os valores como estão nos campos (texto). */
-type Linha = {
-  chave: number
-  servico: string
-  observacao: string
-  preco: string
-  quantidade: string
-  data: string
+/** "Rua X, 10 - Centro - Cidade/UF" com o que o cadastro do cliente tiver. */
+const enderecoDo = (c: Cliente) => {
+  const rua = [c.logradouro, c.numeroEndereco, c.complemento].filter(Boolean).join(', ')
+  const cidade = [c.cidade, c.uf].filter(Boolean).join('/')
+  return [rua, c.bairro, cidade].filter(Boolean).join(' - ')
 }
-
-type Coluna = 'servico' | 'observacao' | 'preco' | 'quantidade' | 'data'
-const COLUNAS: Coluna[] = ['servico', 'observacao', 'preco', 'quantidade', 'data']
-
-let proximaChave = 1
-
-const dois = (n: number) => String(n).padStart(2, '0')
-const hoje = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`
-}
-
-const linhaVazia = (): Linha => ({
-  chave: proximaChave++,
-  servico: '',
-  observacao: '',
-  preco: '',
-  quantidade: '1',
-  data: hoje(),
-})
-
-const totalDa = (l: Linha) =>
-  Math.round((quantidadeParaNumero(l.quantidade) ?? 0) * (moedaParaNumero(l.preco) ?? 0) * 100) / 100
-
-/** Linha sem nada digitado (fica de fora ao salvar). */
-const vazia = (l: Linha) => !l.servico.trim() && !l.observacao.trim() && !moedaParaNumero(l.preco)
-
-const dataBr = (d: string | null) => (d ? d.split('-').reverse().join('/') : '—')
 
 /**
- * Orçamento (/app/orcamento/novo ou /app/orcamento/:id): uma planilha com serviço, observação, preço, quantidade e
- * data em cada linha, e o total ao vivo. "Salvar" guarda para continuar depois; "Finalizar e gerar cupom" cria o
- * cupom com todas as linhas (e o orçamento não muda mais). Enter passa para a linha de baixo (criando uma nova no fim).
+ * Orçamento (/app/orcamento/novo ou /app/orcamento/:id), em duas metades: à esquerda imprimir, baixar PDF,
+ * encaminhar pelo WhatsApp, salvar e finalizar; à direita a própria folha do orçamento (o mesmo desenho do papel),
+ * onde se digita cada campo. "Finalizar e gerar cupom" cria o cupom com as linhas (e o orçamento não muda mais).
  */
 export default function OrcamentoFormPage() {
   const { id } = useParams()
@@ -91,15 +81,39 @@ export default function OrcamentoFormPage() {
   const podeVerClientes = tem(sessao.usuario, 'clientes')
 
   const [original, setOriginal] = useState<Orcamento | null>(null)
+  const [folha, setFolha] = useState<DadosFolha>(folhaNova)
   const [cliente, setCliente] = useState<Cliente | null>(null)
-  const [clienteNome, setClienteNome] = useState('')
   const [sugestoes, setSugestoes] = useState<Cliente[]>([])
-  const [observacao, setObservacao] = useState('')
-  const [linhas, setLinhas] = useState<Linha[]>(() => [linhaVazia()])
   const [forma, setForma] = useState<FormaPagamento>('dinheiro')
   const [aviso, setAviso] = useState<Aviso>(null)
   const [salvando, setSalvando] = useState(false)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
+
+  // Imprimir, baixar PDF e encaminhar pelo WhatsApp: o papel sai do orçamento salvo (igual à folha da tela)
+  const [empresa, setEmpresa] = useState<Empresa | null>(null)
+  const papelPdf = useRef<HTMLDivElement>(null)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
+  const [whatsappAberto, setWhatsappAberto] = useState(false)
+  const [numeroWhatsapp, setNumeroWhatsapp] = useState('')
+  const [erroWhatsapp, setErroWhatsapp] = useState<string>()
+  const [falhaEnvio, setFalhaEnvio] = useState<string>()
+  const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false)
+  const papel = original && (
+    <OrcamentoFolha dados={{ ...folha, numero: original.numero }} empresa={empresa} logoUrl={LOGO_HORIZONTAL} />
+  )
+  const { imprimir, imprimindo, elemento } = useImpressao(papel, 'a4')
+
+  // Dados da loja para o topo da folha
+  useEffect(() => {
+    if (!podeVer) return
+    let ativo = true
+    obterEmpresa(sessao.token)
+      .then((e) => ativo && setEmpresa(e))
+      .catch(() => {})
+    return () => {
+      ativo = false
+    }
+  }, [sessao.token, podeVer])
 
   // Edição: carrega o orçamento salvo
   useEffect(() => {
@@ -109,20 +123,7 @@ export default function OrcamentoFormPage() {
       .then((o) => {
         if (!ativo) return
         setOriginal(o)
-        setClienteNome(o.clienteNome ?? '')
-        setObservacao(o.observacao ?? '')
-        setLinhas(
-          o.itens.length
-            ? o.itens.map((i) => ({
-                chave: proximaChave++,
-                servico: i.servico,
-                observacao: i.observacao ?? '',
-                preco: formatarMoeda(i.preco),
-                quantidade: mascaraQuantidade(formatarQuantidade(i.quantidade)),
-                data: i.data ?? '',
-              }))
-            : [linhaVazia()],
-        )
+        setFolha(folhaDoOrcamento(o))
       })
       .catch((e) => ativo && !sessaoExpirada(e) && setAviso({ tipo: 'erro', texto: mensagemDe(e) }))
     return () => {
@@ -132,8 +133,9 @@ export default function OrcamentoFormPage() {
   }, [id, sessao.token, podeVer])
 
   // Sugestões de clientes do cadastro enquanto digita o nome
+  const nomeDigitado = folha.clienteNome
   useEffect(() => {
-    const termo = clienteNome.trim()
+    const termo = nomeDigitado.trim()
     const jaEscolhido = cliente || (original?.clienteId && termo === original.clienteNome)
     if (jaEscolhido || termo.length < 2 || !podeVerClientes) {
       setSugestoes([])
@@ -150,7 +152,7 @@ export default function OrcamentoFormPage() {
       window.clearTimeout(espera)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clienteNome, cliente, sessao.token])
+  }, [nomeDigitado, cliente, sessao.token])
 
   if (!podeVer) return <div className="erp-pagina"><SemAcesso /></div>
 
@@ -166,56 +168,81 @@ export default function OrcamentoFormPage() {
   }
 
   const finalizado = original?.situacao === 'finalizado'
-  const total = Math.round(linhas.reduce((soma, l) => soma + totalDa(l), 0) * 100) / 100
+  const total = totalDaFolha(folha.linhas)
+  /** Cliente do cadastro: o escolhido agora ou o que já estava salvo (se o nome não mudou). */
+  const clienteIdAtual =
+    cliente?.id ?? (original?.clienteId && folha.clienteNome.trim() === original.clienteNome ? original.clienteId : null)
+  /** O cupom sai com o CNPJ e o endereço da loja: sem eles, não finaliza. */
+  const faltaNaEmpresa = !empresa
+    ? null
+    : [!empresa.documento && 'o CNPJ', !empresa.endereco?.trim() && 'o endereço'].filter(Boolean).join(' e ') || null
 
-  const mudar = (chave: number, coluna: Coluna, valor: string) => {
-    const mascara = coluna === 'preco' ? mascaraMoeda : coluna === 'quantidade' ? mascaraQuantidade : (v: string) => v
-    setLinhas((atual) => atual.map((l) => (l.chave === chave ? { ...l, [coluna]: mascara(valor) } : l)))
+  // ---------- Digitação na folha ----------
+
+  const mudarCampo = (campo: CampoFolha, valor: string) => {
+    if (campo === 'clienteNome' && cliente) setCliente(null)
+    setFolha((f) => ({ ...f, [campo]: campo === 'clienteTelefone' ? formatarTelefone(valor) : valor }))
     setAviso(null)
   }
 
-  const adicionarLinha = (focar: Coluna = 'servico') => {
-    const nova = linhaVazia()
-    setLinhas((atual) => [...atual, nova])
-    window.setTimeout(() => document.getElementById(`orc-${nova.chave}-${focar}`)?.focus(), 0)
+  const mudarLinha = (chave: number, coluna: ColunaFolha, valor: string) => {
+    const mascara = coluna === 'valor' ? mascaraMoeda : coluna === 'quantidade' ? mascaraQuantidade : (v: string) => v
+    setFolha((f) => {
+      const linhas = f.linhas.map((l) => (l.chave === chave ? { ...l, [coluna]: mascara(valor) } : l))
+      // Escreveu na última linha: aparece mais uma em branco embaixo
+      const ultima = linhas[linhas.length - 1]
+      return { ...f, linhas: ultima.chave === chave && !linhaVazia(ultima) ? [...linhas, novaLinha()] : linhas }
+    })
+    setAviso(null)
   }
 
-  const tirarLinha = (chave: number) => {
-    setLinhas((atual) => (atual.length === 1 ? [linhaVazia()] : atual.filter((l) => l.chave !== chave)))
+  const adicionarLinha = (focar: ColunaFolha) => {
+    const nova = novaLinha()
+    setFolha((f) => ({ ...f, linhas: [...f.linhas, nova] }))
+    window.setTimeout(() => document.getElementById(`of-${nova.chave}-${focar}`)?.focus(), 0)
   }
 
-  // Enter: vai para a mesma coluna na linha de baixo (no fim da planilha, cria uma linha nova)
-  const tecla = (e: KeyboardEvent<HTMLInputElement>, indice: number, coluna: Coluna) => {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    const abaixo = linhas[indice + 1]
-    if (abaixo) document.getElementById(`orc-${abaixo.chave}-${coluna}`)?.focus()
-    else adicionarLinha(coluna)
+  const escolherCliente = (c: Cliente) => {
+    setCliente(c)
+    setFolha((f) => ({
+      ...f,
+      clienteNome: c.nome,
+      clienteEndereco: enderecoDo(c) || f.clienteEndereco,
+      clienteTelefone: formatarTelefone(c.celular) || f.clienteTelefone,
+    }))
+    setSugestoes([])
   }
+
+  // ---------- Salvar ----------
 
   const conferir = (): string | null => {
-    const preenchidas = linhas.filter((l) => !vazia(l))
-    if (preenchidas.length === 0) return 'Preencha pelo menos um serviço.'
-    for (const [i, l] of linhas.entries()) {
-      if (vazia(l)) continue
-      if (!l.servico.trim()) return `Linha ${i + 1}: digite o serviço.`
-      if (!(quantidadeParaNumero(l.quantidade) ?? 0)) return `Linha ${i + 1}: digite a quantidade.`
+    const preenchidas = folha.linhas.filter((l) => !linhaVazia(l))
+    if (preenchidas.length === 0) return 'Preencha pelo menos uma linha da tabela.'
+    for (const [i, l] of folha.linhas.entries()) {
+      if (linhaVazia(l)) continue
+      if (!l.descricao.trim()) return `Linha ${i + 1}: digite a descrição.`
+      if (!(quantidadeDa(l) > 0)) return `Linha ${i + 1}: digite a quantidade.`
     }
     return null
   }
 
   const dados = (): DadosOrcamento => ({
-    clienteId: cliente?.id ?? (original?.clienteId && clienteNome.trim() === original.clienteNome ? original.clienteId : null),
-    clienteNome: clienteNome.trim() || null,
-    observacao: observacao.trim() || null,
-    itens: linhas
-      .filter((l) => !vazia(l))
+    clienteId: clienteIdAtual,
+    clienteNome: folha.clienteNome.trim() || null,
+    // A observação de orçamentos antigos continua (ela vai para o cupom ao finalizar)
+    observacao: original?.observacao ?? null,
+    clienteEndereco: folha.clienteEndereco.trim() || null,
+    clienteTelefone: folha.clienteTelefone.trim() || null,
+    data: folha.data || null,
+    condicoes: folha.condicoes.trim() || null,
+    itens: folha.linhas
+      .filter((l) => !linhaVazia(l))
       .map((l) => ({
-        servico: l.servico.trim(),
-        observacao: l.observacao.trim() || null,
-        preco: moedaParaNumero(l.preco) ?? 0,
-        quantidade: quantidadeParaNumero(l.quantidade) ?? 0,
-        data: l.data || null,
+        servico: l.descricao.trim(),
+        observacao: l.observacao,
+        preco: moedaParaNumero(l.valor) ?? 0,
+        quantidade: quantidadeDa(l),
+        data: l.data,
       })),
   })
 
@@ -240,7 +267,8 @@ export default function OrcamentoFormPage() {
       if (!salvo) return
       setOriginal(salvo)
       avisarSalvo('Orçamento salvo com sucesso', `Nº ${numeroCupom(salvo.numero)}`)
-      if (novo) navigate(`/app/orcamento/${salvo.id}`, { replace: true })
+      // Orçamento novo salvo: a lista dos orçamentos, já com o novo
+      if (novo) navigate('/app/orcamento', { replace: true })
     } catch (e) {
       if (!sessaoExpirada(e)) setAviso({ tipo: 'erro', texto: mensagemDe(e) })
     } finally {
@@ -250,6 +278,10 @@ export default function OrcamentoFormPage() {
 
   const finalizar = async () => {
     if (salvando) return
+    if (faltaNaEmpresa) {
+      setAviso({ tipo: 'erro', texto: `Cadastre ${faltaNaEmpresa} da loja em Empresa: eles saem no cupom.` })
+      return
+    }
     setSalvando(true)
     setAviso(null)
     try {
@@ -258,7 +290,8 @@ export default function OrcamentoFormPage() {
       setOriginal(salvo)
       const pronto = await finalizarOrcamento(sessao.token, salvo.id, forma)
       avisarSalvo('Cupom gerado com sucesso', `Orçamento Nº ${numeroCupom(pronto.numero)} finalizado`)
-      navigate(`/app/cupom-fiscal/${pronto.cupomId}`)
+      // Cupom gerado: a lista dos cupons emitidos, já com o novo
+      navigate('/app/cupom-fiscal')
     } catch (e) {
       if (!sessaoExpirada(e)) setAviso({ tipo: 'erro', texto: mensagemDe(e) })
     } finally {
@@ -276,6 +309,113 @@ export default function OrcamentoFormPage() {
       if (!sessaoExpirada(e)) setAviso({ tipo: 'erro', texto: mensagemDe(e) })
       setSalvando(false)
     }
+  }
+
+  // ---------- Imprimir, PDF e WhatsApp ----------
+
+  /**
+   * Antes de imprimir ou gerar o PDF: o orçamento em aberto é salvo (o papel sai com o Nº e com o que está na folha).
+   * Devolve o orçamento salvo (já montado no papel escondido) ou null se não deu para salvar.
+   */
+  const preparar = async (): Promise<Orcamento | null> => {
+    if (finalizado) return original
+    setAviso(null)
+    try {
+      const salvo = await gravar()
+      if (!salvo) return null
+      // Monta o papel com o orçamento salvo antes de fotografar/imprimir
+      flushSync(() => setOriginal(salvo))
+      return salvo
+    } catch (e) {
+      if (!sessaoExpirada(e)) setAviso({ tipo: 'erro', texto: mensagemDe(e) })
+      return null
+    }
+  }
+
+  /** Orçamento novo salvo agora: o endereço passa a ser o dele. */
+  const irParaSalvo = (salvo: Orcamento) => {
+    if (novo) navigate(`/app/orcamento/${salvo.id}`, { replace: true })
+  }
+
+  const imprimirOrcamento = async () => {
+    const salvo = await preparar()
+    if (!salvo) return
+    imprimir()
+    irParaSalvo(salvo)
+  }
+
+  const montarPdf = async () => {
+    if (!papelPdf.current) throw new Error('sem orçamento')
+    // Folha A4: 210 mm de largura (190 mm do orçamento + 10 mm de margem de cada lado)
+    return gerarPdfCupom(papelPdf.current, 210)
+  }
+
+  const baixarPdf = async () => {
+    setGerandoPdf(true)
+    try {
+      const salvo = await preparar()
+      if (!salvo) return
+      const { arquivo } = await montarPdf()
+      baixarArquivo(arquivo, `orcamento-${numeroCupom(salvo.numero)}.pdf`)
+      irParaSalvo(salvo)
+    } catch {
+      setAviso({ tipo: 'erro', texto: 'Não foi possível gerar o PDF. Tente de novo.' })
+    } finally {
+      setGerandoPdf(false)
+    }
+  }
+
+  /** Abre o campo do número já com o telefone da folha (ou o celular do cliente do cadastro). */
+  const abrirWhatsapp = (clienteId: string | null) => {
+    setWhatsappAberto(true)
+    setErroWhatsapp(undefined)
+    setFalhaEnvio(undefined)
+    if (!numeroWhatsapp && telefoneValido(folha.clienteTelefone)) setNumeroWhatsapp(folha.clienteTelefone)
+    else if (clienteId && !numeroWhatsapp)
+      obterCliente(sessao.token, clienteId)
+        .then((c) => setNumeroWhatsapp((atual) => atual || formatarTelefone(c.celular)))
+        .catch(() => {})
+  }
+
+  /** Sem número: a API manda para o celular do cliente do orçamento. Se der errado, abre o campo com o aviso. */
+  const enviarPdf = async (numero: string | null) => {
+    setEnviandoWhatsapp(true)
+    setErroWhatsapp(undefined)
+    setFalhaEnvio(undefined)
+    try {
+      const salvo = await preparar()
+      if (!salvo) return
+      try {
+        const { base64 } = await montarPdf()
+        const enviado = await enviarOrcamentoWhatsapp(sessao.token, salvo.id, base64, numero)
+        setWhatsappAberto(false)
+        avisarSalvo('Orçamento enviado pelo WhatsApp', `PDF enviado para ${formatarTelefone(enviado.numero)}`)
+      } catch (erro) {
+        if (sessaoExpirada(erro)) return
+        if (!numero) abrirWhatsapp(salvo.clienteId)
+        setFalhaEnvio(erro instanceof Error && !('status' in erro) ? 'Não foi possível gerar o PDF.' : mensagemDe(erro))
+      }
+      irParaSalvo(salvo)
+    } finally {
+      setEnviandoWhatsapp(false)
+    }
+  }
+
+  /** Telefone da folha ou cliente do cadastro: um clique já envia. Sem nenhum dos dois: pede o número. */
+  const encaminharWhatsapp = () => {
+    if (whatsappAberto) setWhatsappAberto(false)
+    else if (telefoneValido(folha.clienteTelefone)) void enviarPdf(folha.clienteTelefone)
+    else if (clienteIdAtual) void enviarPdf(null)
+    else abrirWhatsapp(null)
+  }
+
+  const enviarWhatsapp = () => {
+    if (!telefoneValido(numeroWhatsapp)) {
+      setErroWhatsapp(numeroWhatsapp ? 'Número incompleto' : 'Digite o WhatsApp do cliente')
+      document.getElementById('orc-whatsapp')?.focus()
+      return
+    }
+    void enviarPdf(numeroWhatsapp)
   }
 
   const acoes =
@@ -298,6 +438,20 @@ export default function OrcamentoFormPage() {
       )
     ) : undefined
 
+  const sugestoesCliente =
+    sugestoes.length > 0 ? (
+      <ul className="orc-sugestoes" aria-label="Clientes encontrados">
+        {sugestoes.map((c) => (
+          <li key={c.id}>
+            <button type="button" onClick={() => escolherCliente(c)}>
+              <strong>{c.nome}</strong>
+              <span>{formatarTelefone(c.celular)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : undefined
+
   return (
     <div className="pagina tema-orcamento">
       <FaixaPagina
@@ -306,211 +460,155 @@ export default function OrcamentoFormPage() {
         subtitulo={
           original
             ? `Feito por ${original.criadoPor} em ${new Date(original.criadoEm).toLocaleDateString('pt-BR')}`
-            : 'Preencha a tabela: cada linha é um serviço.'
+            : 'Digite direto na folha: cliente, linhas da tabela e condições.'
         }
         voltar={{ para: '/app/orcamento', rotulo: MODULO.rotulo }}
         acoes={acoes}
       />
 
-      <div className="pagina-corpo orc">
-        {finalizado && (
-          <p className="orc-finalizado" role="status">
-            <span aria-hidden="true">✅</span>
-            Finalizado em {new Date(original!.finalizadoEm!).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.
-            {original!.cupomId && (
-              <Link to={`/app/cupom-fiscal/${original!.cupomId}`} className="orc-link-cupom">
-                Ver cupom Nº {numeroCupom(original!.cupomNumero ?? 0)}
-              </Link>
-            )}
-          </p>
-        )}
-
-        {/* Cliente e observação geral */}
-        <div className="orc-dados">
-          <div className="orc-campo orc-cliente">
-            <label htmlFor="orc-cliente">Cliente</label>
-            {finalizado ? (
-              <p className="orc-valor">{original!.clienteNome ?? '—'}</p>
-            ) : (
-              <>
-                <input
-                  id="orc-cliente"
-                  value={clienteNome}
-                  autoComplete="off"
-                  maxLength={200}
-                  placeholder={podeVerClientes ? 'Nome do cliente (digite para buscar no cadastro)' : 'Nome do cliente'}
-                  onChange={(e) => {
-                    setClienteNome(e.target.value)
-                    if (cliente) setCliente(null)
-                  }}
-                />
-                {sugestoes.length > 0 && (
-                  <ul className="orc-sugestoes" aria-label="Clientes encontrados">
-                    {sugestoes.map((c) => (
-                      <li key={c.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCliente(c)
-                            setClienteNome(c.nome)
-                            setSugestoes([])
-                          }}
-                        >
-                          <strong>{c.nome}</strong>
-                          <span>{formatarTelefone(c.celular)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-          </div>
-          <div className="orc-campo orc-observacao">
-            <label htmlFor="orc-observacao">Observação do orçamento</label>
-            {finalizado ? (
-              <p className="orc-valor">{original!.observacao ?? '—'}</p>
-            ) : (
-              <input
-                id="orc-observacao"
-                value={observacao}
-                maxLength={1000}
-                placeholder="Sai no cupom (ex.: validade do orçamento, garantia...)"
-                onChange={(e) => setObservacao(e.target.value)}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* A planilha: linhas e colunas */}
-        <div className="orc-planilha-area">
-          <table className="orc-planilha">
-            <thead>
-              <tr>
-                <th scope="col" className="orc-n">#</th>
-                <th scope="col" className="orc-col-servico">Serviço</th>
-                <th scope="col" className="orc-col-observacao">Observação</th>
-                <th scope="col" className="orc-col-preco numero">Preço</th>
-                <th scope="col" className="orc-col-qtd numero">Quantidade</th>
-                <th scope="col" className="orc-col-data">Data</th>
-                <th scope="col" className="orc-col-total numero">Total</th>
-                {!finalizado && (
-                  <th scope="col" className="orc-col-tirar">
-                    <span className="sr-only">Tirar</span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {finalizado
-                ? original!.itens.map((i, indice) => (
-                    <tr key={i.id}>
-                      <td className="orc-n">{indice + 1}</td>
-                      <td className="orc-texto">{i.servico}</td>
-                      <td className="orc-texto">{i.observacao ?? '—'}</td>
-                      <td className="numero orc-texto">{formatarMoeda(i.preco)}</td>
-                      <td className="numero orc-texto">{formatarQuantidade(i.quantidade)}</td>
-                      <td className="orc-texto">{dataBr(i.data)}</td>
-                      <td className="numero orc-total">{formatarMoeda(i.total)}</td>
-                    </tr>
-                  ))
-                : linhas.map((l, indice) => (
-                    <tr key={l.chave}>
-                      <td className="orc-n">{indice + 1}</td>
-                      {COLUNAS.map((coluna) => (
-                        <td key={coluna} className={coluna === 'preco' || coluna === 'quantidade' ? 'numero' : undefined}>
-                          <input
-                            id={`orc-${l.chave}-${coluna}`}
-                            aria-label={`${ROTULOS[coluna]} da linha ${indice + 1}`}
-                            type={coluna === 'data' ? 'date' : 'text'}
-                            inputMode={coluna === 'preco' ? 'numeric' : coluna === 'quantidade' ? 'decimal' : undefined}
-                            placeholder={PLACEHOLDERS[coluna]}
-                            maxLength={coluna === 'servico' ? 200 : coluna === 'observacao' ? 500 : undefined}
-                            autoComplete="off"
-                            value={l[coluna]}
-                            onChange={(e) => mudar(l.chave, coluna, e.target.value)}
-                            onKeyDown={(e) => tecla(e, indice, coluna)}
-                          />
-                        </td>
-                      ))}
-                      <td className="numero orc-total">{formatarMoeda(totalDa(l))}</td>
-                      <td className="orc-col-tirar">
-                        <button
-                          type="button"
-                          className="orc-tirar"
-                          title="Tirar esta linha"
-                          aria-label={`Tirar a linha ${indice + 1}`}
-                          onClick={() => tirarLinha(l.chave)}
-                        >
-                          <IconeLixeira tamanho={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="orc-rodape">
-          {!finalizado ? (
-            <button type="button" className="orc-adicionar" onClick={() => adicionarLinha()}>
-              <IconeMais tamanho={18} />
-              Adicionar linha
-            </button>
-          ) : (
-            <span />
+      <div className="orc-dividido">
+        {/* ---------- Esquerda: imprimir, PDF, WhatsApp, salvar e finalizar ---------- */}
+        <aside className="orc-lado" aria-label="Ações do orçamento">
+          {finalizado && (
+            <p className="orc-finalizado" role="status">
+              <span aria-hidden="true">✅</span>
+              Finalizado em{' '}
+              {new Date(original!.finalizadoEm!).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.
+              {original!.cupomId && (
+                <Link to={`/app/cupom-fiscal/${original!.cupomId}`} className="orc-link-cupom">
+                  Ver cupom Nº {numeroCupom(original!.cupomNumero ?? 0)}
+                </Link>
+              )}
+            </p>
           )}
-          <p className="orc-total-geral">
+
+          <section className="orc-bloco" aria-label="Imprimir e enviar">
+            <h2 className="orc-bloco-titulo">Imprimir e enviar</h2>
+            <button
+              type="button"
+              className="pagina-botao cupom-botao-imprimir"
+              onClick={() => void imprimirOrcamento()}
+              disabled={imprimindo || salvando}
+            >
+              <span aria-hidden="true">🖨️</span>
+              Imprimir orçamento
+            </button>
+            <button
+              type="button"
+              className="pagina-botao neutro"
+              onClick={() => void baixarPdf()}
+              disabled={gerandoPdf || salvando}
+            >
+              <span aria-hidden="true">📄</span>
+              {gerandoPdf ? 'Gerando PDF...' : 'Baixar PDF'}
+            </button>
+            <button
+              type="button"
+              className="pagina-botao cupom-botao-whatsapp"
+              onClick={encaminharWhatsapp}
+              disabled={enviandoWhatsapp || salvando}
+              aria-expanded={whatsappAberto}
+            >
+              <img src="/imgs/whatsapp.png" alt="" aria-hidden="true" />
+              {enviandoWhatsapp && !whatsappAberto ? 'Enviando...' : 'Encaminhar para o WhatsApp'}
+            </button>
+            {whatsappAberto && (
+              <div className="cupom-whatsapp">
+                <CampoTexto
+                  id="orc-whatsapp"
+                  rotulo="WhatsApp do cliente"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="(16) 99999-9999"
+                  valor={numeroWhatsapp}
+                  onChange={(v) => {
+                    setNumeroWhatsapp(formatarTelefone(v))
+                    setErroWhatsapp(undefined)
+                  }}
+                  erro={erroWhatsapp}
+                />
+                {falhaEnvio && (
+                  <p className="cupom-whatsapp-erro" role="alert">
+                    {falhaEnvio}
+                  </p>
+                )}
+                <div className="cupom-cancelamento-botoes">
+                  <button
+                    type="button"
+                    className="pagina-botao cupom-botao-whatsapp"
+                    onClick={enviarWhatsapp}
+                    disabled={enviandoWhatsapp}
+                  >
+                    <img src="/imgs/whatsapp.png" alt="" aria-hidden="true" />
+                    {enviandoWhatsapp ? 'Enviando...' : 'Enviar PDF'}
+                  </button>
+                  <button type="button" className="pagina-botao neutro" onClick={() => setWhatsappAberto(false)}>
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {!finalizado && (
+            <section className="orc-bloco" aria-label="Salvar e finalizar">
+              <h2 className="orc-bloco-titulo">Salvar e finalizar</h2>
+              <button type="button" className="pagina-botao" onClick={() => void salvar()} disabled={salvando}>
+                <IconeCheck tamanho={20} />
+                {salvando ? 'Salvando...' : 'Salvar orçamento'}
+              </button>
+              {/* Finalizar: com a forma de pagamento, gera o cupom com todas as linhas */}
+              <div className="orc-finalizar">
+                <label htmlFor="orc-forma">Pagamento</label>
+                <select id="orc-forma" value={forma} onChange={(e) => setForma(e.target.value as FormaPagamento)}>
+                  {FORMAS_PAGAMENTO.map((f) => (
+                    <option key={f.valor} value={f.valor}>
+                      {f.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" className="pagina-botao marinho" onClick={() => void finalizar()} disabled={salvando}>
+                <span aria-hidden="true">🧾</span>
+                Finalizar e gerar cupom
+              </button>
+              <Link to="/app/orcamento" className="pagina-botao neutro">
+                Cancelar
+              </Link>
+            </section>
+          )}
+
+          <p className="orc-total-lado">
             <span>Total do orçamento</span>
             <strong>{formatarMoeda(finalizado ? original!.total : total)}</strong>
           </p>
-        </div>
 
-        {aviso && <AvisoPagina aviso={aviso} />}
+          {aviso && <AvisoPagina aviso={aviso} />}
+        </aside>
+
+        {/* ---------- Direita: a folha do orçamento, igual ao papel ---------- */}
+        <div className="orc-folha-area">
+          <div className="orc-papel">
+            <OrcamentoFolha
+              dados={original ? { ...folha, numero: original.numero } : folha}
+              empresa={empresa}
+              logoUrl={LOGO_HORIZONTAL}
+              editar={finalizado ? undefined : { mudarCampo, mudarLinha, adicionarLinha, sugestoesCliente }}
+            />
+          </div>
+        </div>
       </div>
 
-      {!finalizado && (
-        <div className="pagina-barra">
-          <button type="button" className="pagina-botao" onClick={() => void salvar()} disabled={salvando}>
-            <IconeCheck tamanho={20} />
-            {salvando ? 'Salvando...' : 'Salvar orçamento'}
-          </button>
-          {/* Finalizar: pergunta a forma de pagamento e gera o cupom com todas as linhas */}
-          <div className="orc-finalizar">
-            <label htmlFor="orc-forma">Pagamento</label>
-            <select id="orc-forma" value={forma} onChange={(e) => setForma(e.target.value as FormaPagamento)}>
-              {FORMAS_PAGAMENTO.map((f) => (
-                <option key={f.valor} value={f.valor}>
-                  {f.rotulo}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="pagina-botao marinho" onClick={() => void finalizar()} disabled={salvando}>
-              <span aria-hidden="true">🧾</span>
-              Finalizar e gerar cupom
-            </button>
+      {elemento}
+
+      {/* Orçamento para o PDF (folha A4): fora da tela, com margem branca em volta */}
+      {papel && (
+        <div className="impressao" aria-hidden="true">
+          <div ref={papelPdf} className="of-pdf-papel">
+            {papel}
           </div>
-          <Link to="/app/orcamento" className="pagina-botao neutro">
-            Cancelar
-          </Link>
         </div>
       )}
     </div>
   )
-}
-
-const ROTULOS: Record<Coluna, string> = {
-  servico: 'Serviço',
-  observacao: 'Observação',
-  preco: 'Preço',
-  quantidade: 'Quantidade',
-  data: 'Data',
-}
-
-const PLACEHOLDERS: Record<Coluna, string | undefined> = {
-  servico: 'Ex.: Troca de refil',
-  observacao: 'Detalhes do serviço',
-  preco: 'R$ 0,00',
-  quantidade: '1',
-  data: undefined,
 }

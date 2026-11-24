@@ -1,6 +1,6 @@
 /*
   Caixa (PDV), no modelo de frente de caixa: barra do caixa com relógio, dados da venda,
-  à esquerda o produto atual (qtd, descrição, foto, código, valor) e o pagamento,
+  à esquerda a busca do produto e o pagamento,
   à direita a grade dos itens, o total líquido grande, total pago, troco e os botões.
   No computador ocupa a tela inteira sem rolar (só a grade rola); no celular, uma coluna.
   Cores do tema do módulo (.tema-cupom), sem bordas: separação por cor de fundo.
@@ -89,7 +89,6 @@
 .pdv-dado > span,
 .pdv-dado > label,
 .pdv-rotulo,
-.pdv-campo > label,
 .pdv-pagamentos label {
   color: var(--pdv-escuro);
   font-size: 0.78rem;
@@ -245,15 +244,13 @@
   gap: 0.7rem;
 }
 
-/* Qtd + descrição do produto atual, grandes */
+/* Busca do produto (nome ou código de barras), grande; a quantidade se muda na grade dos itens */
 .pdv-atual {
   display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  gap: 0.6rem;
 }
 
-.pdv-qtd,
 .pdv-descricao {
+  position: relative;
   display: grid;
   align-content: start;
   gap: 0.2rem;
@@ -263,24 +260,13 @@
   color: var(--branco);
 }
 
-.pdv-qtd label,
 .pdv-descricao label {
   font-size: 0.8rem;
   font-weight: 700;
   opacity: 0.85;
 }
 
-.pdv .pdv-qtd input {
-  min-height: 52px;
-  padding: 0 0.4rem;
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--branco);
-  font-size: 2rem;
-  font-weight: 800;
-  text-align: center;
-}
-
-/* Descrição: um título grande e editável (o texto que sai no cupom) */
+/* Descrição: a busca do produto (nome ou código de barras), grande */
 .pdv .pdv-descricao input {
   width: 100%;
   min-height: 52px;
@@ -305,75 +291,7 @@
   outline-offset: 1px;
 }
 
-/* Foto do produto + valor unitário e total do item (o código de barras fica em cima, na largura toda) */
-.pdv-leitura {
-  display: grid;
-  grid-template-columns: clamp(8.5rem, 11vw, 11rem) 1fr;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.pdv-foto {
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 6px;
-  background: var(--pdv-campo);
-}
-
-.pdv-foto img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.pdv-campos {
-  display: grid;
-  align-content: start;
-  gap: 0.6rem;
-}
-
-.pdv-campo {
-  position: relative;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.pdv .pdv-codigo input {
-  min-height: 56px;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-/* O texto de ajuda inteiro cabe no campo (o que se digita continua grande) */
-.pdv .pdv-codigo input::placeholder {
-  font-size: 0.92rem;
-  font-weight: 500;
-}
-
-.pdv-valor-unitario {
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  padding: 0 0.8rem;
-  border-radius: 3px;
-  background: var(--pdv-campo);
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--pdv-escuro);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Formas de pagamento: rótulo, forma e valor em linha */
-/* Qtd × valor unitário = total do item selecionado */
-.pdv-total-item {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--pdv-escuro);
-  font-variant-numeric: tabular-nums;
-}
-
 .pdv-pagamentos {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) 9.5rem;
@@ -457,7 +375,12 @@
 }
 
 .pdv-item-descricao {
-  min-width: 8rem;
+  min-width: 10rem;
+}
+
+.pdv .pdv-itens .pdv-item-desc {
+  width: 100%;
+  font-weight: 700;
 }
 
 .pdv-item-descricao strong,
@@ -524,6 +447,63 @@
 }
 
 /* ---------- Totais ---------- */
+
+/* Subtotal, desconto em % e o valor do desconto */
+.pdv-desconto {
+  flex-shrink: 0;
+  display: grid;
+  /* Três caixas da mesma largura */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.7rem;
+}
+
+.pdv-desconto > p,
+.pdv-desconto-campo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 4px;
+  background: var(--pdv-campo);
+}
+
+.pdv-desconto span,
+.pdv-desconto-campo label {
+  color: var(--pdv-escuro);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pdv-desconto strong {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pdv-desconto-campo {
+  padding-right: 0.45rem;
+}
+
+/* Campo do %: largura fixa (não é espremido pelo rótulo) */
+.pdv .pdv-desconto-campo input {
+  flex: 0 0 5.5rem;
+  width: 5.5rem;
+  min-height: 36px;
+  padding: 0.2rem 0.6rem;
+  background: var(--pdv-painel);
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.pdv-desconto-valor.tem strong {
+  color: #1e6b3a;
+}
 
 .pdv-total-liquido {
   flex-shrink: 0;
@@ -683,30 +663,12 @@
     padding-bottom: 0.6rem;
   }
 
-  .pdv .pdv-qtd input,
   .pdv .pdv-descricao input {
     min-height: 44px;
   }
 
   .pdv .pdv-descricao input {
     font-size: 1.15rem;
-  }
-
-  .pdv-leitura {
-    grid-template-columns: clamp(7rem, 9vw, 8.5rem) 1fr;
-  }
-
-  .pdv .pdv-codigo input,
-  .pdv-valor-unitario {
-    min-height: 46px;
-  }
-
-  .pdv-valor-unitario {
-    font-size: 1.35rem;
-  }
-
-  .pdv-campos {
-    gap: 0.4rem;
   }
 
   .pdv-total-liquido strong {
@@ -756,10 +718,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .pdv-leitura {
-    grid-template-columns: 7rem 1fr;
-  }
-
   .pdv-pagamentos {
     grid-template-columns: 1fr 8rem;
   }
@@ -772,10 +730,52 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .pdv-desconto {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pdv-desconto > p:first-child {
+    grid-column: 1 / -1;
+  }
+
   .pdv-itens th:nth-child(2),
   .pdv-itens td:nth-child(2),
   .pdv-itens th:nth-child(3),
   .pdv-itens td:nth-child(3) {
     display: none;
   }
+}
+
+/* Valor da 2ª forma de pagamento: automático (o restante), só para ler */
+.pdv .pdv-pagamentos .pdv-restante {
+  background: #eef3f6;
+  color: var(--pdv-escuro);
+  cursor: default;
+}
+
+/* Falta pagar e a 2ª forma ainda não foi escolhida */
+.pdv .pdv-pagamentos .pdv-restante.falta {
+  background: var(--erro-fundo);
+  color: var(--erro);
+}
+
+/* Falta o CNPJ ou o endereço da loja (saem no cupom) */
+.pdv-aviso-empresa {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 var(--erp-lado) 0.7rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 4px;
+  background: var(--erro-fundo);
+  color: var(--erro);
+  font-weight: 700;
+}
+
+.pdv-aviso-empresa a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

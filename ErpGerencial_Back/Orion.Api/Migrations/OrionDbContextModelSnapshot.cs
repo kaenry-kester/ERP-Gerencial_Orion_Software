@@ -191,6 +191,11 @@ namespace Orion.Api.Migrations
                         .HasColumnType("character varying(2)")
                         .HasColumnName("uf");
 
+                    b.Property<decimal?>("Valor")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)")
+                        .HasColumnName("valor");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmpresaId", "Numero")
@@ -810,6 +815,11 @@ namespace Orion.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("atualizado_em");
 
+                    b.Property<string>("ClienteEndereco")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("cliente_endereco");
+
                     b.Property<Guid?>("ClienteId")
                         .HasColumnType("uuid")
                         .HasColumnName("cliente_id");
@@ -818,6 +828,16 @@ namespace Orion.Api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("cliente_nome");
+
+                    b.Property<string>("ClienteTelefone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cliente_telefone");
+
+                    b.Property<string>("Condicoes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("condicoes");
 
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone")
@@ -836,6 +856,10 @@ namespace Orion.Api.Migrations
                     b.Property<int?>("CupomNumero")
                         .HasColumnType("integer")
                         .HasColumnName("cupom_numero");
+
+                    b.Property<DateOnly?>("Data")
+                        .HasColumnType("date")
+                        .HasColumnName("data");
 
                     b.Property<Guid>("EmpresaId")
                         .HasColumnType("uuid")
@@ -974,6 +998,16 @@ namespace Orion.Api.Migrations
                         .HasColumnType("numeric(14,3)")
                         .HasColumnName("estoque_minimo");
 
+                    b.Property<string>("FornecedorNome")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("fornecedor_nome");
+
+                    b.Property<string>("FornecedorTelefone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("fornecedor_telefone");
+
                     b.Property<string>("Marca")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")
@@ -1014,10 +1048,20 @@ namespace Orion.Api.Migrations
                         .HasColumnType("numeric(14,2)")
                         .HasColumnName("preco_venda_pj");
 
+                    b.Property<decimal>("PrecoVendaTrocaResidencia")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)")
+                        .HasColumnName("preco_venda_troca_residencia");
+
                     b.Property<decimal>("Quantidade")
                         .HasPrecision(14, 3)
                         .HasColumnType("numeric(14,3)")
                         .HasColumnName("quantidade");
+
+                    b.Property<string>("TelefoneComercial")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("telefone_comercial");
 
                     b.Property<string>("Unidade")
                         .IsRequired()

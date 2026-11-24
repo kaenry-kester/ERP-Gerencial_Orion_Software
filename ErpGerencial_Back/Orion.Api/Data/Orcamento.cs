@@ -19,6 +19,16 @@ public class Orcamento
 
     public string? Observacao { get; set; }
 
+    /// <summary>Endereço e telefone do cliente, como digitados na folha do orçamento.</summary>
+    public string? ClienteEndereco { get; set; }
+    public string? ClienteTelefone { get; set; }
+
+    /// <summary>Data que sai na folha (sem ela: o dia em que foi criado).</summary>
+    public DateOnly? Data { get; set; }
+
+    /// <summary>"Formas de pagamento e condições" da folha (ex.: à vista ou em 3 vezes; validade).</summary>
+    public string? Condicoes { get; set; }
+
     public List<OrcamentoItem> Itens { get; set; } = [];
 
     public decimal Total { get; set; }

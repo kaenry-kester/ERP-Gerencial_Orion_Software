@@ -37,6 +37,26 @@ public static class SistemaEndpoints
             return Results.Ok(new { desligando = true });
         });
 
+        // "Sair e fechar o Órion" (botão Sair no computador da loja): roda o mesmo "Parar Órion" da pasta do programa,
+        // que faz a última cópia, fecha o Órion, o WhatsApp e desliga o banco. Os dados ficam salvos.
+        app.MapGet("/api/sistema/fechar", [Authorize] (HttpContext contexto, IConfiguration config) =>
+            Results.Ok(new { podeFechar = ScriptParar(contexto, config) is not null }));
+
+        app.MapPost("/api/sistema/fechar", [Authorize] (HttpContext contexto, IConfiguration config) =>
+        {
+            var script = ScriptParar(contexto, config);
+            if (script is null) return Results.NotFound();
+            // Processo separado e escondido: continua rodando depois que o Órion (este processo) fecha
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{script}\" parar",
+                UseShellExecute = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+            });
+            return Results.Ok(new { fechando = true });
+        });
+
         // "Esqueci a senha" (atalho na pasta do programa): quem tem o computador da loja na mão troca a senha
         app.MapPost("/api/sistema/redefinir-senha", async (
             RedefinirSenhaLocalRequest req, HttpContext contexto, IConfiguration config, OrionDbContext db,
@@ -56,5 +76,17 @@ public static class SistemaEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(new { trocada = true, usuario.Nome });
         });
+    }
+
+    /// <summary>
+    /// Script "orion.ps1" do programa da loja (Sistema:ScriptParar), só no próprio computador e com
+    /// Sistema:PermitirDesligar = true; null no desenvolvimento ou num celular/outro computador da rede.
+    /// </summary>
+    private static string? ScriptParar(HttpContext contexto, IConfiguration config)
+    {
+        var ip = contexto.Connection.RemoteIpAddress;
+        var script = config["Sistema:ScriptParar"];
+        if (!config.GetValue("Sistema:PermitirDesligar", false) || ip is null || !IPAddress.IsLoopback(ip)) return null;
+        return !string.IsNullOrEmpty(script) && File.Exists(script) ? script : null;
     }
 }

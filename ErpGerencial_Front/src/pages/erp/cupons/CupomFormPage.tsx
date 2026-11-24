@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { avisarSalvo } from '../../../components/aviso-salvo/avisarSalvo'
 import { IconeCheck, IconeLixeira, IconeVoltar } from '../../../components/icones/Icones'
-import { IlustracaoProdutos } from '../../../components/icones/Ilustracoes'
 import { useLeitorCodigoBarras } from '../../../hooks/useLeitorCodigoBarras'
 import { useSessaoExpirada } from '../../../hooks/useSessaoExpirada'
 import {
@@ -13,10 +12,12 @@ import {
   listarCupons,
   listarProdutos,
   listarUsuarios,
+  obterEmpresa,
   mensagemDe,
   obterCliente,
   urlImagemProduto,
   type Cliente,
+  type Empresa,
   type FormaPagamento,
   type Produto,
   type Usuario,
@@ -51,7 +52,6 @@ type Item = {
   detalhe: string | null
   codigo: string | null
   codigoBarras: string | null
-  imagem: string | null
   estoque: number | null
   quantidade: string
   valor: string
@@ -69,6 +69,14 @@ const enderecoDo = (c: Cliente) => {
 
 const hora = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
+/** Desconto em %: só números e uma vírgula, com até 2 casas (ex.: "7,5"), no máximo 100. */
+const mascaraPorcentagem = (v: string) => {
+  const [inteiro, ...resto] = v.replace(/[^\d,]/g, '').split(',')
+  const texto = resto.length ? `${inteiro.slice(0, 3)},${resto.join('').slice(0, 2)}` : inteiro.slice(0, 3)
+  return porcentagemParaNumero(texto) > 100 ? '100' : texto
+}
+const porcentagemParaNumero = (v: string) => Number(v.replace(',', '.')) || 0
+
 let proximaChave = 1
 
 // Caixa (PDV): lê ou busca o produto, mostra a foto e os dados dele, soma o total ao vivo e gera o cupom
@@ -85,6 +93,8 @@ export default function CupomFormPage() {
   const [relogio, setRelogio] = useState(hora)
   const [proximoNumero, setProximoNumero] = useState<number | null>(null)
   const [equipe, setEquipe] = useState<Usuario[]>([])
+  // CNPJ e endereço da loja saem no cupom: sem eles, o cupom não é gerado
+  const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [vendedorId, setVendedorId] = useState(sessao.usuario.id)
 
   // Cliente (opcional)
@@ -102,8 +112,8 @@ export default function CupomFormPage() {
   const [forma1, setForma1] = useState<FormaPagamento>('dinheiro')
   const [valor1, setValor1] = useState('')
   const [forma2, setForma2] = useState<FormaPagamento | ''>('')
-  const [valor2, setValor2] = useState('')
   const [observacao, setObservacao] = useState('')
+  const [descontoPct, setDescontoPct] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const gerarRef = useRef<() => void>(() => {})
@@ -121,6 +131,9 @@ export default function CupomFormPage() {
     listarCupons(sessao.token, '', 1)
       .then((l) => ativo && setProximoNumero((l.itens[0]?.numero ?? 0) + 1))
       .catch((e) => ativo && sessaoExpirada(e))
+    obterEmpresa(sessao.token)
+      .then((e) => ativo && setEmpresa(e))
+      .catch(() => {})
     if (sessao.usuario.administrador)
       listarUsuarios(sessao.token)
         .then((u) => ativo && setEquipe(u.filter((x) => x.ativo)))
@@ -213,7 +226,6 @@ export default function CupomFormPage() {
           detalhe: [p.marca, p.modelo].filter(Boolean).join(' · ') || null,
           codigo: p.codigo,
           codigoBarras: p.codigoBarras,
-          imagem: p.imagens[0] ?? null,
           estoque: p.quantidade,
           quantidade: mascaraQuantidade(formatarQuantidade(quantidade)),
           valor: preco > 0 ? formatarMoeda(preco) : '',
@@ -227,12 +239,8 @@ export default function CupomFormPage() {
     document.getElementById('pdv-codigo')?.focus()
   }
 
-  /** Descrição do item selecionado; sem item, cria um item avulso com o texto digitado. */
-  const mudarDescricao = (descricao: string) => {
-    if (atual) {
-      mudarItem(atual.chave, { descricao })
-      return
-    }
+  /** Texto que não é um produto do cadastro: entra como item avulso (ex.: um serviço) e o cursor vai para o valor. */
+  const adicionarAvulso = (descricao: string) => {
     if (!descricao.trim()) return
     const chave = proximaChave++
     setItens((lista) => [
@@ -240,18 +248,20 @@ export default function CupomFormPage() {
       {
         chave,
         produtoId: null,
-        descricao,
+        descricao: descricao.trim(),
         detalhe: null,
         codigo: null,
         codigoBarras: null,
-        imagem: null,
         estoque: null,
         quantidade: mascaraQuantidade(formatarQuantidade(1)),
         valor: '',
       },
     ])
     setSelecionado(chave)
+    setCodigo('')
+    setResultados(null)
     setErro(null)
+    window.setTimeout(() => document.getElementById(`pdv-item-${chave}-valor`)?.focus(), 0)
   }
 
   const mudarItem = (chave: number, mudanca: Partial<Item>) => {
@@ -273,7 +283,7 @@ export default function CupomFormPage() {
       const exato = l.itens.find((p) => p.codigoBarras === termo || p.codigo?.toLowerCase() === termo.toLowerCase())
       const unico = l.itens.length === 1 ? l.itens[0] : undefined
       if (exato ?? unico) adicionarProduto((exato ?? unico)!)
-      else if (l.itens.length === 0) setErro(`Nenhum produto com "${termo}".`)
+      // Nada encontrado: a lista mostra a opção de lançar o texto como item avulso
       else setResultados(l.itens.slice(0, 8))
     } catch (e) {
       if (!sessaoExpirada(e)) setErro(mensagemDe(e))
@@ -283,9 +293,9 @@ export default function CupomFormPage() {
   // Leitor de código de barras em qualquer lugar da tela
   useLeitorCodigoBarras('pdv-codigo', ({ codigo: lido, idAlvo, valorAntes }) => {
     // Se o cursor estava num campo de item, os números foram digitados nele: volta ao que era antes
-    const alvo = idAlvo?.match(/^pdv-item-(\d+)-(quantidade|valor)$/)
+    const alvo = idAlvo?.match(/^pdv-item-(\d+)-(quantidade|valor|descricao)$/)
     if (alvo && valorAntes !== null) mudarItem(Number(alvo[1]), { [alvo[2]]: valorAntes })
-    if (idAlvo === 'pdv-qtd' && valorAntes !== null && atual) mudarItem(atual.chave, { quantidade: valorAntes })
+    if (idAlvo === 'pdv-desconto' && valorAntes !== null) setDescontoPct(valorAntes)
     setCodigo('')
     void adicionarPorCodigo(lido)
   })
@@ -304,21 +314,33 @@ export default function CupomFormPage() {
   }
 
   // ---------- Valores ----------
-  const totalLiquido = Math.round(itens.reduce((soma, i) => soma + totalDoItem(i), 0) * 100) / 100
-  const pago2 = forma2 ? (moedaParaNumero(valor2) ?? 0) : 0
-  const pago1 = moedaParaNumero(valor1) ?? Math.max(0, totalLiquido - pago2)
+  const subtotal = Math.round(itens.reduce((soma, i) => soma + totalDoItem(i), 0) * 100) / 100
+  // Desconto em % sobre o total da venda (sai no cupom como Subtotal / Desconto / Total)
+  const desconto = Math.round(subtotal * porcentagemParaNumero(descontoPct)) / 100
+  const totalLiquido = Math.round((subtotal - desconto) * 100) / 100
+  // A 1ª forma paga o que foi digitado (vazio: o total); a 2ª fica automaticamente com o que faltar
+  const digitado1 = moedaParaNumero(valor1)
+  const pago1 = digitado1 ?? totalLiquido
+  const restante = Math.max(0, Math.round((totalLiquido - pago1) * 100) / 100)
+  const pago2 = forma2 ? restante : 0
   const totalPago = Math.round((pago1 + pago2) * 100) / 100
   const troco = Math.max(0, Math.round((totalPago - totalLiquido) * 100) / 100)
 
   const atual = itens.find((i) => i.chave === selecionado) ?? itens[itens.length - 1] ?? null
 
+  /** O que falta no cadastro da loja para sair no cupom (CNPJ e endereço); null: está tudo lá. */
+  const faltaNaEmpresa = !empresa
+    ? null
+    : [!empresa.documento && 'o CNPJ', !empresa.endereco?.trim() && 'o endereço'].filter(Boolean).join(' e ') || null
+
   const conferir = (): string | null => {
+    if (faltaNaEmpresa) return `Cadastre ${faltaNaEmpresa} da loja em Empresa: eles saem no cupom.`
     if (itens.length === 0) return 'Adicione pelo menos um produto.'
     const semDescricao = itens.findIndex((i) => !i.produtoId && !i.descricao.trim())
     if (semDescricao >= 0) return `Item ${semDescricao + 1}: digite a descrição.`
     const indice = itens.findIndex((i) => !(quantidadeParaNumero(i.quantidade) ?? 0))
     if (indice >= 0) return `${itens[indice].descricao}: digite a quantidade.`
-    if (forma2 && !pago2) return 'Digite o valor da 2ª forma de pagamento.'
+    if (restante > 0 && !forma2) return `Escolha a forma de pagamento 2 para o restante (${formatarMoeda(restante)}).`
     if (totalPago < totalLiquido) return 'O valor pago é menor que o total.'
     if (troco > 0 && forma1 !== 'dinheiro' && forma2 !== 'dinheiro') return 'Troco só em dinheiro: o valor pago passou do total.'
     return null
@@ -347,18 +369,20 @@ export default function CupomFormPage() {
           valorUnitario: moedaParaNumero(i.valor) ?? 0,
         })),
         valor: null,
-        desconto: null,
+        desconto: desconto > 0 ? desconto : null,
         formaPagamento: forma1,
         valorRecebido: null,
         valorPagamento1: moedaParaNumero(valor1),
-        formaPagamento2: forma2 || null,
-        valorPagamento2: forma2 ? pago2 : null,
+        // Nada faltando: a 2ª forma não entra no cupom
+        formaPagamento2: pago2 > 0 ? forma2 || null : null,
+        valorPagamento2: pago2 > 0 ? pago2 : null,
         vendedorId,
         referente: null,
         observacao: observacao.trim() || null,
       })
       avisarSalvo('Cupom gerado com sucesso', `Nº ${numeroCupom(cupom.numero)} · estoque atualizado`)
-      navigate(`/app/cupom-fiscal/${cupom.id}`)
+      // Depois de gerar: a lista dos cupons emitidos, já com o novo
+      navigate('/app/cupom-fiscal')
     } catch (e) {
       if (sessaoExpirada(e)) return
       setErro(e instanceof ErroApi ? e.message : mensagemDe(e))
@@ -461,99 +485,75 @@ export default function CupomFormPage() {
         </div>
       </div>
 
+      {faltaNaEmpresa && (
+        <p className="pdv-aviso-empresa" role="alert">
+          <span aria-hidden="true">⚠️</span>
+          Falta {faltaNaEmpresa} da loja, que saem no cupom.{' '}
+          {sessao.usuario.administrador ? (
+            <Link to="/app/empresa">Cadastrar em Empresa</Link>
+          ) : (
+            'Peça ao administrador para cadastrar em Empresa.'
+          )}
+        </p>
+      )}
+
       <div className="pdv-corpo">
         {/* ---------- Esquerda: produto atual, leitura e pagamento ---------- */}
         <section className="pdv-esquerda" aria-label="Produto e pagamento">
           <div className="pdv-atual">
-            <div className="pdv-qtd">
-              <label htmlFor="pdv-qtd">Qtd</label>
-              <input
-                id="pdv-qtd"
-                inputMode="decimal"
-                title={atual ? `Quantidade de ${atual.descricao}` : 'Adicione um produto'}
-                placeholder="1"
-                disabled={!atual}
-                value={atual?.quantidade ?? ''}
-                onChange={(e) => atual && mudarItem(atual.chave, { quantidade: mascaraQuantidade(e.target.value) })}
-                onFocus={(e) => e.target.select()}
-              />
-            </div>
-            {/* Título do item no cupom: começa com o nome do produto, mas pode ser qualquer texto.
-                Sem produto, o que for digitado vira um item avulso (ex.: um serviço). */}
+            {/* Busca do produto pelo nome ou código de barras (o leitor também cai aqui).
+                Texto que não é produto pode entrar como item avulso (ex.: um serviço). */}
             <div className="pdv-descricao">
-              <label htmlFor="pdv-descricao">Descrição</label>
+              <label htmlFor="pdv-codigo">Nome ou código de barras</label>
               <input
-                id="pdv-descricao"
-                value={atual?.descricao ?? ''}
-                maxLength={200}
+                id="pdv-codigo"
+                type="search"
+                value={codigo}
+                title="Digite o nome ou o código de barras (ou escaneie) e aperte Enter"
                 autoComplete="off"
-                placeholder="Digite o que vai sair no cupom"
-                title="O texto que sai no cupom para este item"
-                onChange={(e) => mudarDescricao(e.target.value)}
+                autoFocus
+                maxLength={200}
+                onChange={(e) => setCodigo(e.target.value)}
+                onKeyDown={teclaCodigo}
               />
-            </div>
-          </div>
-
-          <div className="pdv-campo pdv-codigo">
-            <label htmlFor="pdv-codigo">Código de barras</label>
-            <input
-              id="pdv-codigo"
-              type="search"
-              value={codigo}
-              placeholder="Escaneie ou digite o nome do produto"
-              autoComplete="off"
-              autoFocus
-              onChange={(e) => setCodigo(e.target.value)}
-              onKeyDown={teclaCodigo}
-            />
-            {resultados && (
-              <ul className="pdv-sugestoes" aria-label="Produtos encontrados">
-                {resultados.length === 0 && <li className="pdv-sugestao-vazia">Nenhum produto encontrado</li>}
-                {resultados.map((p) => (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => adicionarProduto(p)}>
-                      {p.imagens[0] ? (
-                        <img src={urlImagemProduto(p.imagens[0])} alt="" />
-                      ) : (
-                        <span className="pdv-sugestao-sem-foto" aria-hidden="true">📦</span>
-                      )}
-                      <span className="pdv-sugestao-textos">
-                        <strong>{p.nome}</strong>
-                        <span>
-                          {[p.codigo, p.codigoBarras, `Estoque: ${formatarQuantidade(p.quantidade)}`]
-                            .filter(Boolean)
-                            .join(' · ')}
+              {resultados && (
+                <ul className="pdv-sugestoes" aria-label="Produtos encontrados">
+                  {resultados.length === 0 && <li className="pdv-sugestao-vazia">Nenhum produto encontrado</li>}
+                  {resultados.map((p) => (
+                    <li key={p.id}>
+                      <button type="button" onClick={() => adicionarProduto(p)}>
+                        {p.imagens[0] ? (
+                          <img src={urlImagemProduto(p.imagens[0])} alt="" />
+                        ) : (
+                          <span className="pdv-sugestao-sem-foto" aria-hidden="true">📦</span>
+                        )}
+                        <span className="pdv-sugestao-textos">
+                          <strong>{p.nome}</strong>
+                          <span>
+                            {[p.codigo, p.codigoBarras, `Estoque: ${formatarQuantidade(p.quantidade)}`]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
                         </span>
-                      </span>
-                      <span className="pdv-sugestao-preco">
-                        {formatarMoeda(pessoaJuridica && p.precoVendaPj > 0 ? p.precoVendaPj : p.precoVendaPf)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="pdv-leitura">
-            <div className="pdv-foto">
-              {atual?.imagem ? (
-                <img src={urlImagemProduto(atual.imagem)} alt={`Foto de ${atual.descricao}`} />
-              ) : (
-                <IlustracaoProdutos tamanho={120} />
+                        <span className="pdv-sugestao-preco">
+                          {formatarMoeda(pessoaJuridica && p.precoVendaPj > 0 ? p.precoVendaPj : p.precoVendaPf)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                  {codigo.trim() && (
+                    <li>
+                      <button type="button" onClick={() => adicionarAvulso(codigo)}>
+                        <span className="pdv-sugestao-sem-foto" aria-hidden="true">✏️</span>
+                        <span className="pdv-sugestao-textos">
+                          <strong>Lançar "{codigo.trim()}" como item avulso</strong>
+                          <span>Sem produto do cadastro (ex.: um serviço); depois digite o valor</span>
+                        </span>
+                      </button>
+                    </li>
+                  )}
+                </ul>
               )}
-            </div>
-            <div className="pdv-campos">
-              <div className="pdv-campo">
-                <span className="pdv-rotulo">Valor unitário</span>
-                <p className="pdv-valor-unitario">{atual ? formatarMoeda(moedaParaNumero(atual.valor) ?? 0) : 'R$ 0,00'}</p>
-                {/* Qtd × valor unitário do produto selecionado */}
-                <p className="pdv-total-item">
-                  {atual
-                    ? `${atual.quantidade || '0'} × ${formatarMoeda(moedaParaNumero(atual.valor) ?? 0)} = ${formatarMoeda(totalDoItem(atual))}`
-                    : ' ' /* sem produto: linha vazia (mantém a altura) */}
-                </p>
-              </div>
             </div>
           </div>
 
@@ -569,7 +569,7 @@ export default function CupomFormPage() {
             <input
               aria-label="Valor da forma de pagamento 1"
               inputMode="numeric"
-              placeholder={formatarMoeda(Math.max(0, totalLiquido - pago2))}
+              placeholder={formatarMoeda(totalLiquido)}
               value={valor1}
               onChange={(e) => setValor1(mascaraMoeda(e.target.value))}
             />
@@ -578,10 +578,7 @@ export default function CupomFormPage() {
             <select
               id="pdv-forma2"
               value={forma2}
-              onChange={(e) => {
-                setForma2(e.target.value as FormaPagamento | '')
-                if (!e.target.value) setValor2('')
-              }}
+              onChange={(e) => setForma2(e.target.value as FormaPagamento | '')}
             >
               <option value="">— Nenhuma —</option>
               {FORMAS_PAGAMENTO.map((f) => (
@@ -590,13 +587,14 @@ export default function CupomFormPage() {
                 </option>
               ))}
             </select>
+            {/* Automático: o total menos o valor da 1ª forma */}
             <input
-              aria-label="Valor da forma de pagamento 2"
-              inputMode="numeric"
-              placeholder="R$ 0,00"
-              disabled={!forma2}
-              value={valor2}
-              onChange={(e) => setValor2(mascaraMoeda(e.target.value))}
+              aria-label="Valor da forma de pagamento 2 (o restante, automático)"
+              title="Automático: o que falta depois da 1ª forma"
+              className={restante > 0 && !forma2 ? 'pdv-restante falta' : 'pdv-restante'}
+              readOnly
+              tabIndex={-1}
+              value={formatarMoeda(restante)}
             />
           </div>
 
@@ -640,7 +638,15 @@ export default function CupomFormPage() {
                     <td>{item.codigo ?? '—'}</td>
                     <td className="pdv-item-barras">{item.codigoBarras ?? '—'}</td>
                     <td className="pdv-item-descricao">
-                      <strong>{item.descricao || '(sem descrição)'}</strong>
+                      <input
+                        id={`pdv-item-${item.chave}-descricao`}
+                        aria-label={`Descrição do item ${indice + 1} (o texto que sai no cupom)`}
+                        className="pdv-item-desc"
+                        value={item.descricao}
+                        maxLength={200}
+                        placeholder="(sem descrição)"
+                        onChange={(e) => mudarItem(item.chave, { descricao: e.target.value })}
+                      />
                       {(item.detalhe || item.estoque !== null) && (
                         <span>
                           {[item.detalhe, item.estoque !== null && `Estoque: ${formatarQuantidade(item.estoque)}`]
@@ -695,6 +701,28 @@ export default function CupomFormPage() {
                 <p>Os produtos da venda aparecem aqui.</p>
               </div>
             )}
+          </div>
+
+          <div className="pdv-desconto">
+            <p>
+              <span>Subtotal</span>
+              <strong>{formatarMoeda(subtotal)}</strong>
+            </p>
+            <div className="pdv-desconto-campo">
+              <label htmlFor="pdv-desconto">Desconto (%)</label>
+              <input
+                id="pdv-desconto"
+                inputMode="decimal"
+                placeholder="0"
+                value={descontoPct}
+                onChange={(e) => setDescontoPct(mascaraPorcentagem(e.target.value))}
+                onFocus={(e) => e.target.select()}
+              />
+            </div>
+            <p className={desconto > 0 ? 'pdv-desconto-valor tem' : 'pdv-desconto-valor'}>
+              <span>Desconto</span>
+              <strong>- {formatarMoeda(desconto)}</strong>
+            </p>
           </div>
 
           <div className="pdv-total-liquido">

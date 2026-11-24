@@ -16,7 +16,13 @@ import {
   type MovimentoEstoque,
   type Produto,
 } from '../../../services/api'
-import { formatarMoeda, formatarQuantidade, mascaraQuantidadeComSinal, quantidadeParaNumero } from '../../../utils/validacao'
+import {
+  formatarMoeda,
+  formatarQuantidade,
+  formatarTelefone,
+  mascaraQuantidadeComSinal,
+  quantidadeParaNumero,
+} from '../../../utils/validacao'
 import AvisoPagina from '../AvisoPagina'
 import { useErp } from '../contexto'
 import { tem } from '../modulos'
@@ -177,21 +183,37 @@ export default function ProdutoPage() {
             <ValorFicha rotulo="Nome do produto" valor={produto.nome} className="c8" />
             <ValorFicha rotulo="Código de barras" valor={produto.codigoBarras} className="c4" />
 
-            <h2 className="ficha-topico">Preços e estoque</h2>
-            <ValorFicha rotulo="Custo" valor={formatarMoeda(produto.precoCusto)} className="c2" />
-            <ValorFicha rotulo="Venda pessoa física" valor={formatarMoeda(produto.precoVendaPf)} className="c4" />
-            <ValorFicha rotulo="Venda pessoa jurídica" valor={formatarMoeda(produto.precoVendaPj)} className="c4" />
+            <ValorFicha rotulo="Custo" valor={formatarMoeda(produto.precoCusto)} className="c3" />
+            <ValorFicha rotulo="Venda pessoa física" valor={formatarMoeda(produto.precoVendaPf)} className="c3" />
+            <ValorFicha rotulo="Venda pessoa jurídica" valor={formatarMoeda(produto.precoVendaPj)} className="c3" />
+            <ValorFicha
+              rotulo="Venda com troca residência"
+              valor={formatarMoeda(produto.precoVendaTrocaResidencia)}
+              className="c3"
+            />
+
             <ValorFicha
               rotulo="Em estoque"
               valor={`${formatarQuantidade(produto.quantidade)}${produto.estoqueBaixo ? ' ⚠️ baixo' : ''}`}
               className="c2"
             />
-
-            <h2 className="ficha-topico">Características</h2>
             <ValorFicha rotulo="Marca" valor={produto.marca} className="c3" />
             <ValorFicha rotulo="Modelo" valor={produto.modelo} className="c3" />
-            <ValorFicha rotulo="Cor" valor={produto.cor} className="c3" />
-            <ValorFicha rotulo="Voltagem" valor={produto.voltagem} className="c3" />
+            <ValorFicha rotulo="Cor" valor={produto.cor} className="c2" />
+            <ValorFicha rotulo="Voltagem" valor={produto.voltagem} className="c2" />
+
+            <ValorFicha rotulo="Nome do fornecedor" valor={produto.fornecedorNome} className="c4" />
+            <ValorFicha
+              rotulo="WhatsApp do fornecedor"
+              valor={produto.fornecedorTelefone && formatarTelefone(produto.fornecedorTelefone)}
+              icone="/imgs/whatsapp.png"
+              className="c4"
+            />
+            <ValorFicha
+              rotulo="Telefone comercial"
+              valor={produto.telefoneComercial && formatarTelefone(produto.telefoneComercial)}
+              className="c4"
+            />
             <ValorFicha rotulo="Observação" valor={produto.observacao} linhas={4} className="c5" />
             <div className="ficha-campo ficha-imagens c7">
               <span className="ficha-rotulo">Imagens</span>

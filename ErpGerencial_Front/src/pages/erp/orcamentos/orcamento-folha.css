@@ -1,0 +1,279 @@
+/*
+  Orçamento em folha A4 (impressão, PDF e a folha editável da tela), no modelo de planilha: cabeçalhos em
+  azul-claro, linhas finas na tabela e caixas para data, cliente, total e condições.
+*/
+
+.of {
+  --of-azul: #c5d9f1;
+  --of-titulo: #1f3f73;
+  --of-linha: #000;
+  width: 190mm;
+  /* Um pouco menos que a área útil do A4 (297 - 2 × 10 mm), para não pular para uma 2ª folha */
+  min-height: 272mm;
+  display: flex;
+  flex-direction: column;
+  gap: 3mm;
+  background: #fff;
+  color: #000;
+  font-family: Calibri, Arial, 'Helvetica Neue', sans-serif;
+  font-size: 18.5px;
+  /* Tudo em negrito e maior: mais fácil de enxergar */
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.of p,
+.of h2,
+.of h3 {
+  margin: 0;
+}
+
+.of table {
+  border-collapse: collapse;
+}
+
+.of th,
+.of td {
+  border: 1px solid var(--of-linha);
+  padding: 1mm 1.5mm;
+  /* Texto longo quebra a linha dentro da célula (nunca passa da borda) */
+  overflow-wrap: anywhere;
+}
+
+.of th {
+  background: var(--of-azul);
+  font-weight: 700;
+}
+
+/* Topo: logo retangular no centro, ocupando boa parte da largura; Nº no canto (onde o modelo tem "Via Empresa") */
+.of-topo {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2mm;
+  text-align: center;
+}
+
+.of-numero {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* Menor e em duas linhas: não encosta na logo */
+  max-width: 34mm;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.of-logo {
+  width: 120mm;
+  max-height: 30mm;
+  object-fit: contain;
+}
+
+.of-empresa {
+  color: var(--of-titulo);
+}
+
+.of-empresa-nome {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.of-data {
+  align-self: flex-end;
+  width: 85mm;
+}
+
+.of-data th {
+  width: 40%;
+}
+
+.of-data td {
+  text-align: right;
+}
+
+.of-cliente {
+  width: 100%;
+}
+
+.of-cliente th {
+  width: 32mm;
+  text-align: right;
+  color: var(--of-titulo);
+}
+
+.of-titulo {
+  margin-top: 2mm !important;
+  text-align: center;
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--of-titulo);
+}
+
+/* Tabela de produtos e serviços */
+.of-itens {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.of-itens .of-qtd {
+  width: 34mm;
+  text-align: center;
+}
+
+.of-itens .of-preco {
+  width: 39mm;
+}
+
+.of-itens td {
+  height: 8mm;
+}
+
+.of-detalhe {
+  color: #444;
+  font-size: 16px;
+}
+
+.of-valor {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 2mm;
+  white-space: nowrap;
+}
+
+/* Valor enorme: o número desce para a linha de baixo em vez de passar da célula */
+.of-valor span:last-child {
+  margin-left: auto;
+}
+
+/* Total, alinhado com as colunas de valor */
+.of-total {
+  align-self: flex-end;
+  width: 78mm;
+}
+
+.of-total th {
+  width: 39mm;
+}
+
+.of-total td {
+  font-weight: 700;
+}
+
+/* Formas de pagamento e condições */
+.of-condicoes {
+  margin-top: auto;
+  border: 1px solid var(--of-linha);
+}
+
+.of-condicoes h3 {
+  padding: 1mm;
+  border-bottom: 1px solid var(--of-linha);
+  background: var(--of-azul);
+  text-align: center;
+  font-size: 18.5px;
+  font-weight: 700;
+}
+
+.of-condicoes-texto {
+  min-height: 16mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5mm;
+  padding: 2.5mm 4mm;
+  text-align: center;
+}
+
+.of-condicoes-texto p {
+  white-space: pre-line;
+}
+
+/* A frase das condições, em letra maior */
+.of-condicoes-frase {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* Folha do PDF: margem branca de 10 mm em volta (210 mm de largura, como o A4) */
+.of-pdf-papel {
+  width: fit-content;
+  padding: 10mm;
+  background: #fff;
+}
+
+/* ---------- Folha editável (tela): o mesmo desenho, com os campos para digitar ---------- */
+
+.of-editavel {
+  min-height: 0;
+}
+
+.of-editavel td:has(> input),
+.of-editavel td:has(> textarea) {
+  padding: 0;
+}
+
+.of-editavel input,
+.of-editavel textarea {
+  width: 100%;
+  min-height: 8mm;
+  padding: 1mm 1.5mm;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.of-editavel input::placeholder,
+.of-editavel textarea::placeholder {
+  color: #8a96a3;
+}
+
+.of-editavel input:hover,
+.of-editavel textarea:hover {
+  background: #f3f7fc;
+}
+
+/* Campo com o cursor: fundo amarelinho, como uma célula selecionada da planilha */
+.of-editavel input:focus,
+.of-editavel textarea:focus {
+  outline: 2px solid #2e6fb7;
+  outline-offset: -2px;
+  background: #fffbe6;
+}
+
+.of-editavel .of-qtd input {
+  text-align: center;
+}
+
+.of-editavel .of-numero-campo {
+  text-align: right;
+}
+
+.of-editavel .of-data td {
+  padding: 0;
+}
+
+.of-editavel .of-data input {
+  text-align: right;
+}
+
+/* Cliente: a lista de clientes do cadastro abre embaixo do campo */
+.of-cliente-nome {
+  position: relative;
+}
+
+.of-editavel textarea {
+  resize: vertical;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.of-editavel .of-condicoes-texto {
+  padding: 1.5mm;
+}

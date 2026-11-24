@@ -37,18 +37,12 @@ export default function InicioPage() {
   // Colunas da grade (blocos e linha de baixo usam a mesma, para ficarem alinhados); no mínimo 3
   const colunas = Math.max(3, modulos.length)
 
-  // Atalhos da venda, no canto direito da faixa: o cupom (feito aqui) e a nota fiscal (direto na emissão do gov.br)
+  // Atalho da venda, no canto direito da faixa: a nota fiscal (direto na emissão do gov.br)
   const acoes = vende && (
-    <>
-      <Link to="/app/cupom-fiscal/novo" className="pagina-botao claro">
-        <span aria-hidden="true">🧾</span>
-        Emitir cupom
-      </Link>
-      <a href={EMISSOR_GOV} target="_blank" rel="noreferrer" className="pagina-botao azul">
-        <span aria-hidden="true">🏛️</span>
-        Emitir nota fiscal
-      </a>
-    </>
+    <a href={EMISSOR_GOV} target="_blank" rel="noreferrer" className="pagina-botao azul">
+      <span aria-hidden="true">🏛️</span>
+      Emitir nota fiscal
+    </a>
   )
 
   return (
@@ -78,7 +72,7 @@ export default function InicioPage() {
             <div key={m.id} className={`erp-modulo tema-${m.id}`}>
               {cadastro ? (
                 <Link to={cadastro.para} className="erp-cadastro">
-                  <IconeMais tamanho={20} />
+                  {cadastro.Icone ? <cadastro.Icone tamanho={20} /> : <IconeMais tamanho={20} />}
                   {cadastro.rotulo}
                 </Link>
               ) : (

@@ -1,20 +1,20 @@
 import { toJpeg } from 'html-to-image'
 
 /** Largura do papel do cupom no PDF (bobina de 80 mm). */
-const LARGURA_MM = 80
+const LARGURA_BOBINA_MM = 80
 
 export type PdfCupom = { arquivo: Blob; base64: string }
 
 /**
  * PDF do cupom igual ao impresso: fotografa o cupom já montado na tela (em alta resolução) e põe a imagem numa
- * página de 80 mm de largura, com a altura do cupom.
+ * página de 80 mm de largura (ou a largura dada, ex.: 210 mm do A4), com a altura do documento.
  */
-export async function gerarPdfCupom(elemento: HTMLElement): Promise<PdfCupom> {
+export async function gerarPdfCupom(elemento: HTMLElement, larguraMm = LARGURA_BOBINA_MM): Promise<PdfCupom> {
   // skipFonts: o cupom usa Arial (do computador); não precisa baixar as fontes do site
   const imagem = await toJpeg(elemento, { pixelRatio: 3, quality: 0.92, backgroundColor: '#ffffff', skipFonts: true })
   const { largura, altura } = await medir(imagem)
   const jpeg = base64ParaBytes(imagem.slice(imagem.indexOf(',') + 1))
-  const bytes = pdfComImagem(jpeg, largura, altura)
+  const bytes = pdfComImagem(jpeg, largura, altura, larguraMm)
   return { arquivo: new Blob([bytes], { type: 'application/pdf' }), base64: bytesParaBase64(bytes) }
 }
 
@@ -40,8 +40,8 @@ function medir(src: string) {
 }
 
 /** PDF de uma página só, com a imagem JPEG ocupando a página inteira. */
-function pdfComImagem(jpeg: Uint8Array, larguraPx: number, alturaPx: number): Uint8Array<ArrayBuffer> {
-  const largura = (LARGURA_MM * 72) / 25.4
+function pdfComImagem(jpeg: Uint8Array, larguraPx: number, alturaPx: number, larguraMm: number): Uint8Array<ArrayBuffer> {
+  const largura = (larguraMm * 72) / 25.4
   const altura = (largura * alturaPx) / larguraPx
   const n = (v: number) => v.toFixed(2)
   const desenho = `q ${n(largura)} 0 0 ${n(altura)} 0 0 cm /Im0 Do Q`
