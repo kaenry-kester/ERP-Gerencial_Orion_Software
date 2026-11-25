@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { CUPOM_ALTURA_MINIMA_MM, CUPOM_LARGURA_MM, esperarImagens } from './pdfCupom'
+// As regras da impressão (só o documento sai no papel) vêm junto com quem imprime, em qualquer página
+import './impressao.css'
 
 /**
  * Impressão do cupom ou do orçamento: `imprimir()` abre a janela de impressão já no tamanho do papel — cupom de
