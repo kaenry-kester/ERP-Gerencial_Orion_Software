@@ -57,6 +57,28 @@ public class EstoqueTests(ApiDeTeste api)
     }
 
     [Fact]
+    public async Task Excluir_cupom_tira_da_lista_e_devolve_o_estoque_uma_vez_so()
+    {
+        var http = (await api.NovaConta()).Http;
+        var produto = await http.NovoProduto("Refil", 80, 10);
+        var idProduto = produto.Texto("id");
+        object Venda() => new { itens = new[] { new { produtoId = idProduto, quantidade = 3, valorUnitario = 80 } }, formaPagamento = "pix" };
+
+        // Cupom emitido: excluir devolve os 3 ao estoque
+        var emitido = await http.Vender(Venda());
+        Assert.Equal(HttpStatusCode.NoContent, (await http.Delete($"/api/cupons/{emitido.Texto("id")}")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.Get($"/api/cupons/{emitido.Texto("id")}")).Status);
+        Assert.Equal(10m, (await http.Get($"/api/produtos/{idProduto}")).Decimal("quantidade"));
+
+        // Cupom já cancelado (o estoque já voltou): excluir não devolve de novo
+        var cancelado = await http.Vender(Venda());
+        await http.Post($"/api/cupons/{cancelado.Texto("id")}/cancelar", new { motivo = "Desistiu" });
+        Assert.Equal(HttpStatusCode.NoContent, (await http.Delete($"/api/cupons/{cancelado.Texto("id")}")).Status);
+        Assert.Equal(10m, (await http.Get($"/api/produtos/{idProduto}")).Decimal("quantidade"));
+        Assert.Equal(0, (await http.Get("/api/cupons")).Json.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
     public async Task Produto_aceita_estoque_zerado_ou_negativo()
     {
         var conta = await api.NovaConta();

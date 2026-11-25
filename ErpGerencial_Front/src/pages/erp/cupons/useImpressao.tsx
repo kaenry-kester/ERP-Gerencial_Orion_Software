@@ -1,33 +1,46 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { CUPOM_ALTURA_MINIMA_MM, CUPOM_LARGURA_MM, esperarImagens } from './pdfCupom'
 
 /**
- * Impressão do cupom ou do orçamento: `imprimir()` abre a janela de impressão já no tamanho do papel — bobina de
- * 80 mm (impressora térmica) ou folha A4. Só o documento sai no papel (o resto da página fica escondido). Coloque
- * `elemento` em qualquer lugar da página. `documento` é o que vai no papel (ex.: <CupomTermico />); null enquanto
- * não carregou.
+ * Impressão do cupom ou do orçamento: `imprimir()` abre a janela de impressão já no tamanho do papel — cupom de
+ * 58 mm de largura (a altura acompanha o texto, no mínimo 80 mm) ou folha A4. Só o documento sai no papel (o resto
+ * da página fica escondido). Coloque `elemento` em qualquer lugar da página. `documento` é o que vai no papel
+ * (ex.: <CupomTermico />); null enquanto não carregou.
  */
 export function useImpressao(documento: ReactNode, papel: 'bobina' | 'a4' = 'bobina') {
   const [imprimindo, setImprimindo] = useState(false)
 
   useEffect(() => {
     if (!imprimindo) return
+    let ativo = true
     const pagina = document.createElement('style')
-    if (papel === 'a4') pagina.textContent = '@page { size: A4; margin: 10mm; }'
-    else {
-      // A bobina de 80 mm não tem altura fixa: o papel fica do tamanho do cupom (medido já montado, fora da tela)
-      const altura = document.querySelector<HTMLElement>('.impressao-cupom .ct')?.offsetHeight ?? 0
-      const alturaMm = Math.ceil((altura * 25.4) / 96) + 6
-      pagina.textContent = `@page { size: 80mm ${Math.max(alturaMm, 60)}mm; margin: 0; }`
-    }
-    document.head.appendChild(pagina)
-    document.body.classList.add('imprimindo')
     const terminar = () => setImprimindo(false)
     window.addEventListener('afterprint', terminar)
-    // Espera o cupom aparecer na página antes de abrir a janela de impressão
-    const timer = window.setTimeout(() => window.print(), 50)
+
+    void (async () => {
+      const montado = document.querySelector<HTMLElement>('.impressao-cupom')
+      // Sem isso a logo pode sair cortada ou em branco (e o cupom seria medido sem ela)
+      if (montado) await esperarImagens(montado)
+      if (papel === 'a4') pagina.textContent = '@page { size: A4; margin: 10mm; }'
+      else {
+        // Largura fixa de 58 mm; a altura é a do cupom já montado (fora da tela), com 2 mm de folga para o corte
+        const altura = montado?.querySelector('.ct')?.getBoundingClientRect().height ?? 0
+        const alturaMm = Math.max(Math.ceil((altura * 25.4) / 96) + 2, CUPOM_ALTURA_MINIMA_MM)
+        pagina.textContent =
+          `@page { size: ${CUPOM_LARGURA_MM}mm ${alturaMm}mm; margin: 0; }` +
+          // Sem margens nem altura mínima da página: o papel tem só o cupom
+          'html, body { margin: 0 !important; padding: 0 !important; height: auto !important; }'
+      }
+      if (!ativo) return
+      document.head.appendChild(pagina)
+      document.body.classList.add('imprimindo')
+      // Espera o navegador aplicar o tamanho do papel antes de abrir a janela de impressão
+      window.setTimeout(() => ativo && window.print(), 50)
+    })()
+
     return () => {
-      window.clearTimeout(timer)
+      ativo = false
       window.removeEventListener('afterprint', terminar)
       pagina.remove()
       document.body.classList.remove('imprimindo')

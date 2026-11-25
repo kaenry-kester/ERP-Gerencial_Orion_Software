@@ -151,7 +151,7 @@ export function expiracaoDoToken(token: string): number | null {
   }
 }
 
-/** Sessão nova (mais 8 horas); o ERP chama sozinho enquanto está aberto. */
+/** Sessão nova (mais 30 dias); o ERP chama sozinho enquanto está aberto. */
 export const renovarSessao = (token: string) => requisicao<Sessao>('POST', '/api/auth/renovar', { token })
 
 // ---------- Esqueci minha senha ----------
@@ -380,6 +380,11 @@ export type Cliente = {
   observacao: string | null
   /** Valor em R$ (opcional). */
   valor: number | null
+  /** Segundo aparelho do cliente (opcional). */
+  item2: string | null
+  marca2: string | null
+  modelo2: string | null
+  valor2: number | null
 }
 
 export type DadosCliente = {
@@ -417,6 +422,10 @@ export type DadosCliente = {
   modelo: string
   observacao: string
   valor: number | null
+  item2: string
+  marca2: string
+  modelo2: string
+  valor2: number | null
 }
 
 export type TipoIntervalo = 'meses' | 'data'
@@ -547,6 +556,8 @@ export type MensagemHoje = {
   erro: string | null
   /** Quantas já saíram hoje (cliente com intervalo de minutos/horas recebe mais de uma por dia). */
   enviadas: number
+  /** Era de um dia anterior (o Órion estava fechado): saiu hoje, ao ligar, ou ainda está na fila. */
+  atrasada: boolean
 }
 
 export const listarMensagensHoje = (token: string) => requisicao<MensagemHoje[]>('GET', '/api/whatsapp/hoje', { token })
@@ -690,6 +701,9 @@ export const emitirCupom = (token: string, dados: DadosCupom) =>
 export const cancelarCupom = (token: string, id: string, motivo: string) =>
   requisicao<Cupom>('POST', `/api/cupons/${id}/cancelar`, { corpo: { motivo }, token })
 
+/** Tira o cupom da lista de vez (e do Financeiro); se não estava cancelado, os produtos voltam ao estoque. */
+export const excluirCupom = (token: string, id: string) => requisicao<void>('DELETE', `/api/cupons/${id}`, { token })
+
 /** Manda o PDF do cupom (base64) pelo WhatsApp da loja; sem número, vai para o celular do cliente do cupom. */
 export const enviarCupomWhatsapp = (token: string, id: string, pdf: string, numero: string | null) =>
   requisicao<{ numero: string }>('POST', `/api/cupons/${id}/whatsapp`, { corpo: { pdf, numero }, token })
@@ -730,6 +744,8 @@ export type Orcamento = {
   data: string | null
   /** "Formas de pagamento e condições". */
   condicoes: string | null
+  /** CPF ou CNPJ do cliente, sem pontuação. */
+  clienteDocumento: string | null
 }
 
 export type DadosOrcamento = {
@@ -741,6 +757,7 @@ export type DadosOrcamento = {
   clienteTelefone: string | null
   data: string | null
   condicoes: string | null
+  clienteDocumento: string | null
 }
 
 export type ListaOrcamentos = { itens: Orcamento[]; total: number; pagina: number; tamanhoPagina: number }

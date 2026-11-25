@@ -34,7 +34,7 @@ public static class AuthEndpoints
         grupo.MapPost("/senha/redefinir", RedefinirSenha).RequireRateLimiting(Politicas.Codigo);
     }
 
-    /// <summary>Sessão nova (mais 8 horas) para quem está usando o sistema; o site chama sozinho antes de vencer.</summary>
+    /// <summary>Sessão nova (mais 30 dias) para quem está usando o sistema; o site chama sozinho antes de vencer.</summary>
     private static async Task<IResult> Renovar(ClaimsPrincipal user, OrionDbContext db, TokenService tokens)
     {
         var usuario = await UsuarioAtual.Carregar(user, db);

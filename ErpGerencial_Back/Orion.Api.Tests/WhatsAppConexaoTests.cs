@@ -99,9 +99,12 @@ public class WhatsAppConexaoTests(ApiDeTeste api)
         }
 
         var itens = (await http.Get("/api/whatsapp/hoje")).Json.EnumerateArray().ToList();
-        Assert.Equal("enviada", itens.Single(i => i.GetProperty("nome").GetString() == "Paulo Enviado")
-            .GetProperty("situacao").GetString());
-        Assert.Equal("agendada", itens.Single(i => i.GetProperty("nome").GetString() == "Rita Atrasada")
-            .GetProperty("situacao").GetString());
+        var paulo = itens.Single(i => i.GetProperty("nome").GetString() == "Paulo Enviado");
+        var rita = itens.Single(i => i.GetProperty("nome").GetString() == "Rita Atrasada");
+        Assert.Equal("enviada", paulo.GetProperty("situacao").GetString());
+        Assert.Equal("agendada", rita.GetProperty("situacao").GetString());
+        // As duas eram de ontem: aparecem marcadas como atrasadas (recapitulação ao ligar o Órion)
+        Assert.True(paulo.GetProperty("atrasada").GetBoolean());
+        Assert.True(rita.GetProperty("atrasada").GetBoolean());
     }
 }

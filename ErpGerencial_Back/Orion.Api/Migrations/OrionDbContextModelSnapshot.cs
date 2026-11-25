@@ -113,6 +113,11 @@ namespace Orion.Api.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("item");
 
+                    b.Property<string>("Item2")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("item2");
+
                     b.Property<string>("Logradouro")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
@@ -123,6 +128,11 @@ namespace Orion.Api.Migrations
                         .HasColumnType("character varying(80)")
                         .HasColumnName("marca");
 
+                    b.Property<string>("Marca2")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("marca2");
+
                     b.Property<string>("MensagemWhatsapp")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -132,6 +142,11 @@ namespace Orion.Api.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")
                         .HasColumnName("modelo");
+
+                    b.Property<string>("Modelo2")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("modelo2");
 
                     b.Property<string>("Nome")
                         .IsRequired()
@@ -195,6 +210,11 @@ namespace Orion.Api.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)")
                         .HasColumnName("valor");
+
+                    b.Property<decimal?>("Valor2")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)")
+                        .HasColumnName("valor2");
 
                     b.HasKey("Id");
 
@@ -814,6 +834,11 @@ namespace Orion.Api.Migrations
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("atualizado_em");
+
+                    b.Property<string>("ClienteDocumento")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)")
+                        .HasColumnName("cliente_documento");
 
                     b.Property<string>("ClienteEndereco")
                         .HasMaxLength(300)

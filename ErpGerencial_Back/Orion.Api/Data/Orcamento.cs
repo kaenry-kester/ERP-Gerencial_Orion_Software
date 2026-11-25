@@ -17,6 +17,9 @@ public class Orcamento
     public Guid? ClienteId { get; set; }
     public string? ClienteNome { get; set; }
 
+    /// <summary>CPF (11) ou CNPJ (14) do cliente, sem pontuação, como digitado na folha.</summary>
+    public string? ClienteDocumento { get; set; }
+
     public string? Observacao { get; set; }
 
     /// <summary>Endereço e telefone do cliente, como digitados na folha do orçamento.</summary>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Aviso } from '../../../components/formulario/FaixaAviso'
-import { IconeBusca, IconeMais } from '../../../components/icones/Icones'
+import { avisarSalvo } from '../../../components/aviso-salvo/avisarSalvo'
+import { IconeBusca, IconeLixeira, IconeMais } from '../../../components/icones/Icones'
 import { IlustracaoOrcamento } from '../../../components/icones/Ilustracoes'
 import { useSessaoExpirada } from '../../../hooks/useSessaoExpirada'
-import { listarOrcamentos, mensagemDe, type ListaOrcamentos } from '../../../services/api'
+import { excluirOrcamento, listarOrcamentos, mensagemDe, type ListaOrcamentos } from '../../../services/api'
 import { formatarMoeda } from '../../../utils/validacao'
 import AvisoPagina from '../AvisoPagina'
 import CabecalhoModulo from '../CabecalhoModulo'
@@ -12,13 +13,15 @@ import FaixaPagina from '../FaixaPagina'
 import { useErp } from '../contexto'
 import { MODULOS, podeAcessar } from '../modulos'
 import SemAcesso from '../SemAcesso'
+import { useSelecao } from '../useSelecao'
 import { numeroCupom } from '../cupons/numero'
 
 const MODULO = MODULOS.find((m) => m.id === 'orcamento')!
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
-// Orçamentos, mais novos primeiro, com busca. Clicar abre o orçamento (editar, finalizar ou ver o cupom gerado).
+// Orçamentos, mais novos primeiro, com busca. Clicar abre o orçamento (editar, finalizar ou ver o cupom gerado);
+// as caixinhas da 1ª coluna marcam orçamentos para excluir da lista.
 export default function OrcamentosPage() {
   const { sessao } = useErp()
   const navigate = useNavigate()
@@ -28,6 +31,10 @@ export default function OrcamentosPage() {
   const [pagina, setPagina] = useState(1)
   const [lista, setLista] = useState<ListaOrcamentos | null>(null)
   const [aviso, setAviso] = useState<Aviso>(null)
+  const [excluindo, setExcluindo] = useState(false)
+  // Muda depois de excluir: a lista é carregada de novo
+  const [recarregar, setRecarregar] = useState(0)
+  const { marcados, alternar, todos, limpar } = useSelecao()
   const podeVer = podeAcessar(sessao.usuario, MODULO)
 
   // Busca enquanto digita, esperando a pessoa parar por um instante
@@ -49,7 +56,11 @@ export default function OrcamentosPage() {
       ativo = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessao.token, buscaAplicada, pagina, podeVer])
+  }, [sessao.token, buscaAplicada, pagina, podeVer, recarregar])
+
+  // Outra busca ou outra página: as marcações de antes não valem mais
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => limpar(), [buscaAplicada, pagina])
 
   if (!podeVer) {
     return (
@@ -64,6 +75,26 @@ export default function OrcamentosPage() {
   const inicio = lista && total > 0 ? (lista.pagina - 1) * lista.tamanhoPagina + 1 : 0
   const fim = lista ? inicio + lista.itens.length - 1 : 0
   const paginas = lista ? Math.max(1, Math.ceil(total / lista.tamanhoPagina)) : 1
+  const idsDaPagina = lista?.itens.map((item) => item.id) ?? []
+  const todosMarcados = idsDaPagina.length > 0 && idsDaPagina.every((i) => marcados.has(i))
+
+  const excluirMarcados = async () => {
+    const quantos = marcados.size
+    const texto = quantos === 1 ? 'este orçamento' : `estes ${quantos} orçamentos`
+    if (!window.confirm(`Excluir ${texto}? O cupom de um orçamento já finalizado continua. Não dá para desfazer.`)) return
+    setExcluindo(true)
+    setAviso(null)
+    try {
+      for (const id of marcados) await excluirOrcamento(sessao.token, id)
+      avisarSalvo('Item excluído da sua lista', quantos === 1 ? '1 orçamento excluído' : `${quantos} orçamentos excluídos`)
+    } catch (e) {
+      if (!sessaoExpirada(e)) setAviso({ tipo: 'erro', texto: mensagemDe(e) })
+    } finally {
+      limpar()
+      setExcluindo(false)
+      setRecarregar((n) => n + 1)
+    }
+  }
 
   return (
     <div className="pagina tema-orcamento">
@@ -93,6 +124,12 @@ export default function OrcamentosPage() {
             onChange={(e) => setBusca(e.target.value)}
           />
         </div>
+        {marcados.size > 0 && (
+          <button type="button" className="pagina-botao perigo" onClick={excluirMarcados} disabled={excluindo}>
+            <IconeLixeira tamanho={20} />
+            {excluindo ? 'Excluindo...' : `Excluir marcados (${marcados.size})`}
+          </button>
+        )}
         {lista && (
           <p className="lista-contagem" role="status">
             <strong>{total}</strong> {total === 1 ? 'orçamento' : 'orçamentos'}
@@ -122,6 +159,14 @@ export default function OrcamentosPage() {
               <table className="lista-tabela">
                 <thead>
                   <tr>
+                    <th scope="col" className="lista-marcar">
+                      <input
+                        type="checkbox"
+                        aria-label="Marcar todos os orçamentos desta página para excluir"
+                        checked={todosMarcados}
+                        onChange={(e) => todos(idsDaPagina, e.target.checked)}
+                      />
+                    </th>
                     <th scope="col" className="lista-id">Nº</th>
                     <th scope="col">Data</th>
                     <th scope="col">Cliente</th>
@@ -134,6 +179,15 @@ export default function OrcamentosPage() {
                   {lista.itens.map((o) => (
                     // A linha inteira abre o orçamento; o link no Nº é o acesso pelo teclado.
                     <tr key={o.id} onClick={() => navigate(`/app/orcamento/${o.id}`)}>
+                      {/* A caixinha marca para excluir (sem abrir o orçamento) */}
+                      <td className="lista-marcar" data-rotulo="Excluir" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Marcar o orçamento Nº ${numeroCupom(o.numero)} para excluir`}
+                          checked={marcados.has(o.id)}
+                          onChange={() => alternar(o.id)}
+                        />
+                      </td>
                       <td className="lista-id" data-rotulo="Nº">
                         <Link to={`/app/orcamento/${o.id}`} className="lista-nome">
                           {numeroCupom(o.numero)}

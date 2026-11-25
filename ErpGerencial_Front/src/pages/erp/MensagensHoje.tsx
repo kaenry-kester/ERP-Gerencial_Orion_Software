@@ -53,6 +53,9 @@ export default function MensagensHoje() {
   const enviadas = conta('enviada') + conta('teste')
   const agendadas = conta('agendada')
   const erros = conta('erro')
+  // Recapitulação ao ligar: as que eram de dias em que o Órion estava fechado
+  const atrasadas = lista?.filter((m) => m.atrasada) ?? []
+  const atrasadasNaFila = atrasadas.filter((m) => m.situacao === 'agendada').length
 
   return (
     <section className="mensagens-hoje" aria-labelledby="mensagens-hoje-titulo">
@@ -66,9 +69,21 @@ export default function MensagensHoje() {
             <span>{enviadas} enviadas</span>
             <span>{agendadas} para enviar</span>
             {erros > 0 && <span className="erro">{erros} não saíram</span>}
+            {atrasadas.length > 0 && <span className="atrasada">{atrasadas.length} atrasadas</span>}
           </p>
         )}
       </header>
+
+      {atrasadas.length > 0 && (
+        <p className="mensagens-hoje-recapitulacao" role="status">
+          <span aria-hidden="true">⏱</span>
+          {atrasadas.length === 1 ? '1 mensagem ficou' : `${atrasadas.length} mensagens ficaram`} para trás enquanto o
+          Órion estava fechado.{' '}
+          {atrasadasNaFila > 0
+            ? `${atrasadasNaFila === 1 ? 'Ela está saindo' : `${atrasadasNaFila} estão saindo`} agora, uma de cada vez.`
+            : 'Já foram enviadas ao ligar.'}
+        </p>
+      )}
 
       {!lista && !falhou && <p className="mensagens-hoje-vazio">Carregando...</p>}
       {falhou && !lista && <p className="mensagens-hoje-vazio">Não foi possível carregar as mensagens de hoje.</p>}
@@ -88,7 +103,14 @@ export default function MensagensHoje() {
                   {m.enviadas > 1 && <small> · {m.enviadas} enviadas hoje</small>}
                 </Link>
                 <span className="mensagens-hoje-celular">{formatarTelefone(m.celular)}</span>
-                <span className={`mensagens-hoje-situacao ${s.classe}`}>{s.rotulo}</span>
+                <span className="mensagens-hoje-fim">
+                  {m.atrasada && (
+                    <span className="mensagens-hoje-atrasada" title="Era de um dia em que o Órion estava fechado">
+                      Atrasada
+                    </span>
+                  )}
+                  <span className={`mensagens-hoje-situacao ${s.classe}`}>{s.rotulo}</span>
+                </span>
               </li>
             )
           })}

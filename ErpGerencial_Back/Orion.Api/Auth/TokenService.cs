@@ -12,6 +12,13 @@ namespace Orion.Api.Auth;
 /// </summary>
 public class TokenService(IConfiguration config)
 {
+    /// <summary>
+    /// Quanto o login vale. Longo de propósito (programa da loja, aberto por dias): enquanto o sistema está aberto, o
+    /// site renova sozinho uma vez por dia, então só pede a senha de novo depois de 30 dias sem uso. Desativar a
+    /// pessoa ou mudar as permissões vale na hora mesmo assim (tudo é lido do banco a cada requisição).
+    /// </summary>
+    public static readonly TimeSpan Duracao = TimeSpan.FromDays(30);
+
     public const string Emissor = "orion-api";
     public const string Publico = "orion-front";
 
@@ -30,7 +37,7 @@ public class TokenService(IConfiguration config)
                 new Claim(JwtRegisteredClaimNames.Name, usuario.Nome),
                 new Claim(JwtRegisteredClaimNames.Email, usuario.Email),
             ]),
-            Expires = DateTime.UtcNow.AddHours(8),
+            Expires = DateTime.UtcNow + Duracao,
             SigningCredentials = _credenciais,
         });
 

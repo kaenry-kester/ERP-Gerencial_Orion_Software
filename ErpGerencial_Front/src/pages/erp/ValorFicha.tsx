@@ -18,13 +18,15 @@ type Props = {
  */
 export default function ValorFicha({ rotulo, valor, className, icone, linhas }: Props) {
   const texto = valor?.trim() ? valor : '—'
+  // Valor curto (telefone, CPF/CNPJ, data, CEP, R$...): sempre numa linha só, nunca partido em duas
+  const curto = !linhas && texto.length <= 20
   return (
     <div className={['ficha-campo', className].filter(Boolean).join(' ')}>
       <div className="ficha-cabecalho">
         <span className="ficha-rotulo">{rotulo}</span>
       </div>
       <div
-        className={linhas ? 'ficha-valor longo' : 'ficha-valor'}
+        className={linhas ? 'ficha-valor longo' : curto ? 'ficha-valor curto' : 'ficha-valor'}
         style={linhas ? { minHeight: `${linhas * 1.3 + 0.6}em` } : undefined}
         title={linhas ? undefined : texto}
       >

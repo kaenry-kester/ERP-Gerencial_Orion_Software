@@ -47,6 +47,12 @@ public class Cliente
     public string? Modelo { get; set; }
     public string? Observacao { get; set; }
 
+    /// <summary>Segundo aparelho do cliente (opcional).</summary>
+    public string? Item2 { get; set; }
+    public string? Marca2 { get; set; }
+    public string? Modelo2 { get; set; }
+    public decimal? Valor2 { get; set; }
+
     /// <summary>Valor em R$ (opcional), ao lado do aparelho.</summary>
     public decimal? Valor { get; set; }
 

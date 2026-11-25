@@ -907,7 +907,8 @@
 
 .cliente-detalhe-ficha .ficha-valor {
   padding-block: 0.3rem;
-  font-size: 0.82rem;
+  padding-inline: 0.4rem;
+  font-size: 0.76rem;
 }
 
 /* Quebra nos espaços (ex.: "(16) | 99999-9999"); só parte uma palavra se ela sozinha não couber */
@@ -916,6 +917,13 @@
   white-space: normal;
   overflow-wrap: break-word;
   min-width: 0;
+}
+
+/* Telefone, CPF/CNPJ, datas, CEP e valores: numa linha só (a letra menor faz caber) */
+.cliente-detalhe-ficha .ficha-valor.curto > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Painel do WhatsApp: superfície clara do tema, sem borda */

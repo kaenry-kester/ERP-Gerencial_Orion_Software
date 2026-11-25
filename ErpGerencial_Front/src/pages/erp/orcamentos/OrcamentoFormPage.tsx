@@ -26,8 +26,11 @@ import {
   type Orcamento,
 } from '../../../services/api'
 import {
+  erroDocumento,
+  formatarDocumento,
   formatarMoeda,
   formatarTelefone,
+  normalizarCnpj,
   mascaraMoeda,
   mascaraQuantidade,
   moedaParaNumero,
@@ -39,7 +42,7 @@ import { useErp } from '../contexto'
 import { MODULOS, podeAcessar, tem } from '../modulos'
 import SemAcesso from '../SemAcesso'
 import { numeroCupom } from '../cupons/numero'
-import { baixarArquivo, gerarPdfCupom } from '../cupons/pdfCupom'
+import { baixarArquivo, gerarPdfOrcamento } from '../cupons/pdfCupom'
 import { useImpressao } from '../cupons/useImpressao'
 import { LOGO_HORIZONTAL } from '../logoLoja'
 import {
@@ -181,7 +184,8 @@ export default function OrcamentoFormPage() {
 
   const mudarCampo = (campo: CampoFolha, valor: string) => {
     if (campo === 'clienteNome' && cliente) setCliente(null)
-    setFolha((f) => ({ ...f, [campo]: campo === 'clienteTelefone' ? formatarTelefone(valor) : valor }))
+    const mascara = campo === 'clienteTelefone' ? formatarTelefone : campo === 'clienteDocumento' ? formatarDocumento : null
+    setFolha((f) => ({ ...f, [campo]: mascara ? mascara(valor) : valor }))
     setAviso(null)
   }
 
@@ -207,6 +211,7 @@ export default function OrcamentoFormPage() {
     setFolha((f) => ({
       ...f,
       clienteNome: c.nome,
+      clienteDocumento: c.documento ? formatarDocumento(c.documento) : f.clienteDocumento,
       clienteEndereco: enderecoDo(c) || f.clienteEndereco,
       clienteTelefone: formatarTelefone(c.celular) || f.clienteTelefone,
     }))
@@ -218,6 +223,8 @@ export default function OrcamentoFormPage() {
   const conferir = (): string | null => {
     const preenchidas = folha.linhas.filter((l) => !linhaVazia(l))
     if (preenchidas.length === 0) return 'Preencha pelo menos uma linha da tabela.'
+    const documento = erroDocumento(folha.clienteDocumento)
+    if (documento) return `CPF/CNPJ do cliente: ${documento}.`
     for (const [i, l] of folha.linhas.entries()) {
       if (linhaVazia(l)) continue
       if (!l.descricao.trim()) return `Linha ${i + 1}: digite a descrição.`
@@ -233,6 +240,7 @@ export default function OrcamentoFormPage() {
     observacao: original?.observacao ?? null,
     clienteEndereco: folha.clienteEndereco.trim() || null,
     clienteTelefone: folha.clienteTelefone.trim() || null,
+    clienteDocumento: normalizarCnpj(folha.clienteDocumento) || null,
     data: folha.data || null,
     condicoes: folha.condicoes.trim() || null,
     itens: folha.linhas
@@ -346,8 +354,8 @@ export default function OrcamentoFormPage() {
 
   const montarPdf = async () => {
     if (!papelPdf.current) throw new Error('sem orçamento')
-    // Folha A4: 210 mm de largura (190 mm do orçamento + 10 mm de margem de cada lado)
-    return gerarPdfCupom(papelPdf.current, 210)
+    // Folhas A4 (190 mm do orçamento + 10 mm de margem); se não couber numa, quebra entre as linhas da tabela
+    return gerarPdfOrcamento(papelPdf.current)
   }
 
   const baixarPdf = async () => {

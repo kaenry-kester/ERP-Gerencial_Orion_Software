@@ -186,6 +186,22 @@
   margin: 0 0 0.5rem;
 }
 
+/* Só para ver: letra um pouco menor; valores curtos (telefone, código de barras, preços) numa linha só */
+.produto-detalhe-ficha .ficha-rotulo {
+  font-size: 0.74rem;
+}
+
+.produto-detalhe-ficha .ficha-valor {
+  padding-inline: 0.4rem;
+  font-size: 0.76rem;
+}
+
+/* Textos longos (nome, fornecedor) quebram a linha em vez de serem cortados */
+.produto-detalhe-ficha .ficha-valor:not(.curto) > span {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 /* ---------- Foto do produto ampliada (lista de produtos) ---------- */
 
 .imagem-ampliada {

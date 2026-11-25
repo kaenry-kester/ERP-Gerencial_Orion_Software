@@ -1,5 +1,5 @@
 import type { Orcamento } from '../../../services/api'
-import { formatarMoeda, formatarQuantidade, formatarTelefone, mascaraQuantidade, moedaParaNumero, quantidadeParaNumero } from '../../../utils/validacao'
+import { formatarDocumento, formatarMoeda, formatarQuantidade, formatarTelefone, mascaraQuantidade, moedaParaNumero, quantidadeParaNumero } from '../../../utils/validacao'
 
 /*
   Dados da folha do orçamento (os campos que a pessoa digita) e as contas da tabela.
@@ -29,13 +29,15 @@ export type DadosFolha = {
   /** "2026-10-31" */
   data: string
   clienteNome: string
+  /** CPF ou CNPJ, como está no campo (com pontuação). */
+  clienteDocumento: string
   clienteEndereco: string
   clienteTelefone: string
   linhas: LinhaFolha[]
   condicoes: string
 }
 
-export type CampoFolha = 'data' | 'clienteNome' | 'clienteEndereco' | 'clienteTelefone' | 'condicoes'
+export type CampoFolha = 'data' | 'clienteNome' | 'clienteDocumento' | 'clienteEndereco' | 'clienteTelefone' | 'condicoes'
 export type ColunaFolha = 'quantidade' | 'descricao' | 'valor'
 
 /** Linha sem nada digitado (fica de fora ao salvar). */
@@ -70,6 +72,7 @@ export const folhaNova = (): DadosFolha => ({
   numero: null,
   data: hojeIso(),
   clienteNome: '',
+  clienteDocumento: '',
   clienteEndereco: '',
   clienteTelefone: '',
   linhas: Array.from({ length: LINHAS_MINIMAS }, novaLinha),
@@ -90,6 +93,7 @@ export const folhaDoOrcamento = (o: Orcamento): DadosFolha => {
     numero: o.numero,
     data: o.data ?? o.criadoEm.slice(0, 10),
     clienteNome: o.clienteNome ?? '',
+    clienteDocumento: o.clienteDocumento ? formatarDocumento(o.clienteDocumento) : '',
     clienteEndereco: o.clienteEndereco ?? '',
     clienteTelefone: o.clienteTelefone ? formatarTelefone(o.clienteTelefone) : '',
     linhas: [...linhas, ...Array.from({ length: Math.max(1, LINHAS_MINIMAS - linhas.length) }, novaLinha)],

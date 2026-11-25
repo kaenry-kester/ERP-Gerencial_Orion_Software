@@ -208,6 +208,21 @@
   cursor: pointer;
 }
 
+/* Campo da altura de duas linhas da ficha (ex.: observação ao lado do 1º e do 2º aparelho do cliente) */
+:is(.ficha, .ficha-grade) > .ficha-duas-linhas {
+  grid-row: span 2;
+}
+
+.ficha-duas-linhas > :is(textarea, .ficha-valor) {
+  flex: 1;
+}
+
+@media (max-width: 600px) {
+  :is(.ficha, .ficha-grade) > .ficha-duas-linhas {
+    grid-row: auto;
+  }
+}
+
 /* Detalhes (só para ver): o valor salvo na mesma caixa do cadastro */
 .ficha-valor {
   display: flex;

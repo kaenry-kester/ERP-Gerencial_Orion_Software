@@ -104,6 +104,7 @@ public static class CupomEndpoints
         grupo.MapGet("/{id:guid}", Obter);
         grupo.MapPost("/", Emitir);
         grupo.MapPost("/{id:guid}/cancelar", Cancelar);
+        grupo.MapDelete("/{id:guid}", Excluir);
         grupo.MapPut("/{id:guid}/nota", AnotarNota);
         grupo.MapPost("/{id:guid}/whatsapp", EnviarWhatsapp);
     }
@@ -435,6 +436,36 @@ public static class CupomEndpoints
 
         await db.SaveChangesAsync();
         return Results.Ok(Dto(cupom));
+    }
+
+    /// <summary>
+    /// Tira o cupom da lista de vez (sai também do Financeiro e do histórico do cliente). Se ainda não estava
+    /// cancelado, os produtos dele voltam ao estoque, como no cancelamento.
+    /// </summary>
+    private static async Task<IResult> Excluir(Guid id, ClaimsPrincipal user, OrionDbContext db)
+    {
+        var (usuario, negado) = await Permissoes.Exigir(user, db, Permissoes.CupomFiscal);
+        if (usuario is null) return negado!;
+
+        var cupom = await db.Cupons.Include(c => c.Itens)
+            .SingleOrDefaultAsync(c => c.Id == id && c.EmpresaId == usuario.EmpresaId);
+        if (cupom is null) return Results.NotFound();
+
+        if (cupom.CanceladoEm is null)
+        {
+            var idsProdutos = cupom.Itens.Where(i => i.ProdutoId is not null).Select(i => i.ProdutoId!.Value).Distinct().ToList();
+            var produtos = await db.Produtos.Where(p => idsProdutos.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+            var observacao = $"Cupom Nº {cupom.Numero:D6} excluído";
+            foreach (var item in cupom.Itens)
+            {
+                if (item.ProdutoId is { } idProduto && produtos.TryGetValue(idProduto, out var produto))
+                    Estoque.Movimentar(db, produto, "cancelamento", item.Quantidade, usuario, observacao: observacao);
+            }
+        }
+
+        db.Cupons.Remove(cupom);
+        await db.SaveChangesAsync();
+        return Results.NoContent();
     }
 
     private static Dictionary<string, string[]> Validar(CupomRequest req)

@@ -77,6 +77,10 @@ const VAZIO: Valores = {
   item: '',
   marca: '',
   modelo: '',
+  item2: '',
+  marca2: '',
+  modelo2: '',
+  valor2: '',
   observacao: '',
   valor: '',
   envioDia: '',
@@ -123,6 +127,7 @@ const MASCARAS: Partial<Record<Campo, (v: string) => string>> = {
   documento: formatarDocumento,
   cep: formatarCep,
   valor: mascaraMoeda,
+  valor2: mascaraMoeda,
   uf: (v) => v.replace(/[^a-z]/gi, '').slice(0, 2).toUpperCase(),
 }
 
@@ -168,6 +173,10 @@ const paraFormulario = (c: Cliente): Valores => ({
   item: c.item ?? '',
   marca: c.marca ?? '',
   modelo: c.modelo ?? '',
+  item2: c.item2 ?? '',
+  marca2: c.marca2 ?? '',
+  modelo2: c.modelo2 ?? '',
+  valor2: c.valor2 != null ? formatarMoeda(c.valor2) : '',
   observacao: c.observacao ?? '',
   valor: c.valor != null ? formatarMoeda(c.valor) : '',
   ...paraCamposEnvio(c.envioEm),
@@ -184,6 +193,7 @@ const paraApi = ({ envioDia, envioHora, ...v }: Valores): DadosCliente => ({
   documento: normalizarCnpj(v.documento),
   cep: apenasDigitos(v.cep),
   valor: moedaParaNumero(v.valor),
+  valor2: moedaParaNumero(v.valor2),
   // O servidor calcula o intervalo pela data: hoje 14/10 e próximo envio 14/12 → a cada 2 meses
   envioEm: envioDosCampos({ envioDia, envioHora } as Valores)?.toISOString() ?? null,
 })
@@ -476,7 +486,7 @@ export default function ClienteFormPage() {
 
                 <CampoFicha {...campo('dataNascimento')} rotulo="Data de nascimento" type="date" className="c3" />
                 <CampoFicha {...campo('conjuge')} rotulo="Cônjuge" maxLength={200} className="c6" />
-                <CampoFicha {...campo('dataCompra')} rotulo="Data da compra" type="date" className="c3" />
+                <CampoFicha {...campo('dataCompra')} rotulo="Data do cadastro" type="date" className="c3" />
 
                 <CampoFicha {...campo('celular')} rotulo="Celular" obrigatorio type="tel" inputMode="numeric" icone="/imgs/whatsapp.png" className="c3" />
                 <CampoFicha {...campo('celular2')} rotulo="Celular 2" type="tel" inputMode="numeric" icone="/imgs/whatsapp.png" className="c3" />
@@ -485,7 +495,7 @@ export default function ClienteFormPage() {
               </div>
             </div>
 
-            {/* Aparelho do cliente: item, marca, modelo e uma observação livre */}
+            {/* Aparelho do cliente: item, marca, modelo, valor e uma observação livre; embaixo, um 2º aparelho (opcional) */}
             <div className="ficha-aparelho c12">
               <div className="ficha-grade">
                 <CampoFicha {...campo('item')} rotulo="Item" maxLength={120} placeholder="Ex.: Purificador" className="c3" />
@@ -499,7 +509,26 @@ export default function ClienteFormPage() {
                   icone="/imgs/cifrao.svg"
                   className="c2"
                 />
-                <CampoFicha {...campo('observacao')} rotulo="Observação" maxLength={2000} className="c3" />
+                {/* Uma observação só, da altura das duas linhas (1º e 2º aparelho) */}
+                <CampoFicha
+                  {...campo('observacao')}
+                  rotulo="Observação"
+                  maxLength={2000}
+                  linhas={3}
+                  className="c3 ficha-duas-linhas"
+                />
+
+                <CampoFicha {...campo('item2')} rotulo="Item nº 2 (opcional)" maxLength={120} className="c3" />
+                <CampoFicha {...campo('marca2')} rotulo="Marca nº 2 (opcional)" maxLength={80} className="c2" />
+                <CampoFicha {...campo('modelo2')} rotulo="Modelo nº 2 (opcional)" maxLength={80} className="c2" />
+                <CampoFicha
+                  {...campo('valor2')}
+                  rotulo="Valor nº 2 (opcional)"
+                  inputMode="numeric"
+                  placeholder="R$ 0,00"
+                  icone="/imgs/cifrao.svg"
+                  className="c2"
+                />
               </div>
             </div>
 

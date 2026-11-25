@@ -1,5 +1,6 @@
 /*
-  Documento impresso: cupom de 80 mm (impressora térmica).
+  Documento impresso: cupom de 58 mm de largura (impressora térmica; a altura acompanha o texto) e a folha A4 do
+  orçamento.
   Na impressão só o documento aparece; na tela, os mesmos componentes servem de pré-visualização.
 */
 
@@ -30,19 +31,29 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* Nada partido entre duas páginas: a logo, as linhas da tabela e os blocos do orçamento */
+  .impressao img,
+  .impressao tr,
+  .impressao .ct-itens li,
+  .impressao :is(.of-topo, .of-total, .of-condicoes) {
+    break-inside: avoid;
+  }
 }
 
-/* ---------- Cupom 80 mm ---------- */
+/* ---------- Cupom 58 mm (largura fixa; a altura acompanha o texto) ---------- */
 
 .ct {
   position: relative;
-  width: 72mm;
-  padding: 3mm 0;
+  box-sizing: border-box;
+  width: 58mm;
+  padding: 3mm 3mm;
   margin: 0 auto;
+  overflow: hidden;
   background: #fff;
   color: #000;
   font-family: Arial, "Helvetica Neue", sans-serif;
-  font-size: 11.5px;
+  font-size: 10px;
   line-height: 1.35;
   letter-spacing: 0;
   word-spacing: 0;
@@ -66,20 +77,20 @@
 /* Logo da loja no topo do cupom */
 .ct-logo {
   display: block;
-  max-width: 56mm;
-  max-height: 22mm;
+  max-width: 100%;
+  max-height: 18mm;
   margin: 0 auto 2mm;
   object-fit: contain;
 }
 
 .ct-empresa {
-  font-size: 15px;
+  font-size: 12.5px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .ct-titulo {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -109,7 +120,7 @@
 
 .ct-total {
   margin: 1mm 0 !important;
-  font-size: 15px;
+  font-size: 12.5px;
   font-weight: 700;
 }
 
@@ -126,7 +137,7 @@
   padding: 1mm 4mm;
   border: 3px solid #b42318;
   color: #b42318;
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.15em;
   opacity: 0.75;

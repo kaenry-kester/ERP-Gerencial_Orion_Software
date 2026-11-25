@@ -12,7 +12,8 @@ public record OrcamentoItemRequest(string? Servico, string? Observacao, decimal 
 
 public record OrcamentoRequest(
     Guid? ClienteId, string? ClienteNome, string? Observacao, List<OrcamentoItemRequest>? Itens,
-    string? ClienteEndereco = null, string? ClienteTelefone = null, DateOnly? Data = null, string? Condicoes = null);
+    string? ClienteEndereco = null, string? ClienteTelefone = null, DateOnly? Data = null, string? Condicoes = null,
+    string? ClienteDocumento = null);
 
 /// <summary>Ao finalizar: como o cliente pagou (o cupom sai com o total do orçamento).</summary>
 public record FinalizarOrcamentoRequest(string FormaPagamento);
@@ -38,12 +39,13 @@ public record OrcamentoDto(
     string? ClienteEndereco,
     string? ClienteTelefone,
     DateOnly? Data,
-    string? Condicoes);
+    string? Condicoes,
+    string? ClienteDocumento);
 
 public record ListaOrcamentos(List<OrcamentoDto> Itens, int Total, int Pagina, int TamanhoPagina);
 
 /// <summary>
-/// Orçamentos da empresa (mesma permissão dos cupons). Enquanto aberto, pode ser alterado ou excluído;
+/// Orçamentos da empresa (mesma permissão dos cupons). Enquanto aberto, pode ser alterado; excluir vale sempre;
 /// finalizar gera o cupom com os itens do orçamento (como itens avulsos: serviço, observação e data).
 /// </summary>
 public static class OrcamentoEndpoints
@@ -162,7 +164,7 @@ public static class OrcamentoEndpoints
         if (usuario is null) return negado!;
         var orcamento = await db.Orcamentos.SingleOrDefaultAsync(o => o.Id == id && o.EmpresaId == usuario.EmpresaId);
         if (orcamento is null) return Results.NotFound();
-        if (orcamento.Situacao != "aberto") return Results.Conflict(new { erro = "Orçamento finalizado não pode ser excluído" });
+        // Finalizado também pode sair da lista: o cupom gerado por ele continua
         db.Orcamentos.Remove(orcamento);
         await db.SaveChangesAsync();
         return Results.NoContent();
@@ -186,7 +188,7 @@ public static class OrcamentoEndpoints
         var pedido = new CupomRequest(
             ClienteId: cliente?.Id,
             ClienteNome: orcamento.ClienteNome,
-            ClienteDocumento: cliente?.Documento,
+            ClienteDocumento: orcamento.ClienteDocumento ?? cliente?.Documento,
             ClienteEndereco: orcamento.ClienteEndereco ?? (cliente is null ? null : CupomEndpoints.EnderecoDo(cliente)),
             Itens: orcamento.Itens.OrderBy(i => i.Ordem)
                 .Select(i => new CupomItemRequest(null, i.Servico, i.Quantidade, i.Preco, i.Observacao, i.Data))
@@ -261,6 +263,7 @@ public static class OrcamentoEndpoints
         orcamento.Observacao = Opcional(req.Observacao);
         orcamento.ClienteEndereco = Opcional(req.ClienteEndereco);
         orcamento.ClienteTelefone = Opcional(req.ClienteTelefone);
+        orcamento.ClienteDocumento = Opcional(Validacao.NormalizarDocumento(req.ClienteDocumento ?? ""));
         orcamento.Data = req.Data;
         orcamento.Condicoes = Opcional(req.Condicoes);
 
@@ -304,6 +307,7 @@ public static class OrcamentoEndpoints
         if ((req.Observacao?.Trim().Length ?? 0) > 1000) erros["observacao"] = ["Máximo de 1000 letras"];
         if ((req.ClienteEndereco?.Trim().Length ?? 0) > 300) erros["clienteEndereco"] = ["Máximo de 300 letras"];
         if ((req.ClienteTelefone?.Trim().Length ?? 0) > 30) erros["clienteTelefone"] = ["Máximo de 30 letras"];
+        Validacao.Documento(erros, "clienteDocumento", req.ClienteDocumento);
         if ((req.Condicoes?.Trim().Length ?? 0) > 1000) erros["condicoes"] = ["Máximo de 1000 letras"];
         return erros;
     }
@@ -319,5 +323,5 @@ public static class OrcamentoEndpoints
             .Select(i => new OrcamentoItemDto(i.Id, i.Servico, i.Observacao, i.Preco, i.Quantidade, i.Data, i.Total))
             .ToList(),
         o.Total, o.Situacao, o.CupomId, o.CupomNumero, o.FinalizadoEm, o.CriadoPor, o.CriadoEm, o.AtualizadoEm,
-        o.ClienteEndereco, o.ClienteTelefone, o.Data, o.Condicoes);
+        o.ClienteEndereco, o.ClienteTelefone, o.Data, o.Condicoes, o.ClienteDocumento);
 }

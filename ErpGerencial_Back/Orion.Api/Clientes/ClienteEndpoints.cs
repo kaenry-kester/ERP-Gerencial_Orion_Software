@@ -42,7 +42,12 @@ public record ClienteRequest(
     string? Modelo = null,
     string? Observacao = null,
     /// <summary>Valor em R$ (opcional), ao lado do aparelho.</summary>
-    decimal? Valor = null);
+    decimal? Valor = null,
+    /// <summary>Segundo aparelho do cliente (opcional).</summary>
+    string? Item2 = null,
+    string? Marca2 = null,
+    string? Modelo2 = null,
+    decimal? Valor2 = null);
 
 /// <summary>Mensagem personalizada de um cliente (vazia: volta a usar a mensagem padrão da empresa).</summary>
 public record MensagemClienteRequest(string? Mensagem);
@@ -88,7 +93,11 @@ public record ClienteDto(
     string? Marca,
     string? Modelo,
     string? Observacao,
-    decimal? Valor);
+    decimal? Valor,
+    string? Item2,
+    string? Marca2,
+    string? Modelo2,
+    decimal? Valor2);
 
 public record ListaClientes(List<ClienteDto> Itens, int Total, int Pagina, int TamanhoPagina);
 
@@ -373,9 +382,15 @@ public static class ClienteEndpoints
         Tamanho("item", req.Item, 120);
         Tamanho("marca", req.Marca, 80);
         Tamanho("modelo", req.Modelo, 80);
+        Tamanho("item2", req.Item2, 120);
+        Tamanho("marca2", req.Marca2, 80);
+        Tamanho("modelo2", req.Modelo2, 80);
         Tamanho("observacao", req.Observacao, 2000);
-        if (req.Valor is < 0) erros["valor"] = ["Não pode ser negativo"];
-        else if (req.Valor is > 999_999_999_999m) erros["valor"] = ["Valor muito alto"];
+        foreach (var (campo, valor) in new[] { ("valor", req.Valor), ("valor2", req.Valor2) })
+        {
+            if (valor is < 0) erros[campo] = ["Não pode ser negativo"];
+            else if (valor is > 999_999_999_999m) erros[campo] = ["Valor muito alto"];
+        }
         Tamanho("logradouro", req.Logradouro, 150);
         Tamanho("numeroEndereco", req.NumeroEndereco, 20);
         Tamanho("complemento", req.Complemento, 100);
@@ -410,6 +425,10 @@ public static class ClienteEndpoints
         c.Item = Opcional(req.Item);
         c.Marca = Opcional(req.Marca);
         c.Modelo = Opcional(req.Modelo);
+        c.Item2 = Opcional(req.Item2);
+        c.Marca2 = Opcional(req.Marca2);
+        c.Modelo2 = Opcional(req.Modelo2);
+        c.Valor2 = req.Valor2 is { } valor2 ? Math.Round(valor2, 2) : null;
         c.Observacao = Opcional(req.Observacao);
         c.Valor = req.Valor is { } valor ? Math.Round(valor, 2) : null;
         c.DataCompra = req.DataCompra;
@@ -484,5 +503,6 @@ public static class ClienteEndpoints
         new(c.Id, c.Numero, c.Nome, c.Celular, c.Documento, c.Produto, c.RgInscricao, c.DataNascimento, c.PontoReferencia,
             c.TelefoneResidencial, c.TelefoneComercial, c.Celular2, c.Conjuge, c.DataCompra, c.Cep, c.Logradouro, c.NumeroEndereco, c.Complemento,
             c.Bairro, c.Cidade, c.Uf, c.TipoIntervalo, c.IntervaloQuantidade, c.IntervaloUnidade, Proxima(c), c.MensagemWhatsapp,
-            c.EnvioEm, fotoId, mensagemImagemId, c.CriadoEm, c.AtualizadoEm, c.Item, c.Marca, c.Modelo, c.Observacao, c.Valor);
+            c.EnvioEm, fotoId, mensagemImagemId, c.CriadoEm, c.AtualizadoEm, c.Item, c.Marca, c.Modelo, c.Observacao, c.Valor,
+            c.Item2, c.Marca2, c.Modelo2, c.Valor2);
 }

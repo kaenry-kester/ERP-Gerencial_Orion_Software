@@ -48,10 +48,9 @@ public class OrcamentoTests(ApiDeTeste api)
         Assert.Equal("Cozinha", item.GetProperty("observacao").GetString());
         Assert.Equal("2026-10-26", item.GetProperty("data").GetString());
 
-        // Finalizado não muda, não se exclui e não finaliza de novo
+        // Finalizado não muda e não finaliza de novo (excluir pode: ver Orcamento_guarda_o_cpf_cnpj_e_pode_ser_excluido...)
         Assert.Equal(HttpStatusCode.Conflict,
             (await http.Put($"/api/orcamentos/{id}", new { itens = new[] { Linha("Outro", 1, 1) } })).Status);
-        Assert.Equal(HttpStatusCode.Conflict, (await http.DeleteAsync($"/api/orcamentos/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await http.Post($"/api/orcamentos/{id}/finalizar", new { formaPagamento = "pix" })).Status);
     }
 
@@ -159,6 +158,26 @@ public class OrcamentoTests(ApiDeTeste api)
         var finalizado = await http.Post($"/api/orcamentos/{criado.Texto("id")}/finalizar", new { formaPagamento = "pix" });
         var cupom = await http.Get($"/api/cupons/{finalizado.Texto("cupomId")}");
         Assert.Equal("Rua A, 10 - Centro", cupom.Texto("clienteEndereco"));
+    }
+
+    [Fact]
+    public async Task Orcamento_guarda_o_cpf_cnpj_e_pode_ser_excluido_mesmo_finalizado()
+    {
+        var http = (await api.NovaConta()).Http;
+        var invalido = await http.Post("/api/orcamentos", new { clienteNome = "Lia", clienteDocumento = "111.111.111-11", itens = new[] { Linha("Filtro", 10, 1) } });
+        Assert.Equal(HttpStatusCode.BadRequest, invalido.Status);
+
+        var criado = await http.Post("/api/orcamentos", new { clienteNome = "Lia", clienteDocumento = "529.982.247-25", itens = new[] { Linha("Filtro", 10, 1) } });
+        Assert.Equal(HttpStatusCode.Created, criado.Status);
+        Assert.Equal("52998224725", criado.Texto("clienteDocumento"));
+
+        // Ao finalizar, o CPF vai para o cupom; excluir o orçamento finalizado não apaga o cupom
+        var finalizado = await http.Post($"/api/orcamentos/{criado.Texto("id")}/finalizar", new { formaPagamento = "pix" });
+        var idCupom = finalizado.Texto("cupomId");
+        Assert.Equal("52998224725", (await http.Get($"/api/cupons/{idCupom}")).Texto("clienteDocumento"));
+        Assert.Equal(HttpStatusCode.NoContent, (await http.Delete($"/api/orcamentos/{criado.Texto("id")}")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.Get($"/api/orcamentos/{criado.Texto("id")}")).Status);
+        Assert.Equal(HttpStatusCode.OK, (await http.Get($"/api/cupons/{idCupom}")).Status);
     }
 
     [Fact]

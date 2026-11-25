@@ -49,7 +49,7 @@ const comDadosDaLoja = (cupom: Cupom, empresa: Empresa | null): Cupom =>
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
-// Cupom emitido: pré-visualização do papel, imprimir (80 mm), baixar em PDF, encaminhar pelo WhatsApp e cancelar.
+// Cupom emitido: pré-visualização do papel, imprimir (58 mm), baixar em PDF, encaminhar pelo WhatsApp e cancelar.
 export default function CupomPage() {
   const { id } = useParams()
   const { sessao } = useErp()
@@ -224,7 +224,7 @@ export default function CupomPage() {
         )}
 
         <div className="cupom-detalhe-grade">
-          {/* Imprimir: só o cupom fiscal (impressora térmica de 80 mm) */}
+          {/* Imprimir: só o cupom fiscal (impressora térmica, papel de 58 mm) */}
           <section className="cupom-imprimir" aria-label="Imprimir">
             <h2 className="detalhe-titulo">Imprimir</h2>
             <button type="button" className="pagina-botao cupom-botao-imprimir" onClick={imprimir} disabled={imprimindo}>

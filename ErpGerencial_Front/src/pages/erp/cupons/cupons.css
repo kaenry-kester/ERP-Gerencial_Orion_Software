@@ -181,9 +181,9 @@
   overflow-x: auto;
 }
 
+/* O papel no tamanho real: 58 mm de largura e, no mínimo, 80 mm de altura (como sai na impressora e no PDF) */
 .cupom-papel .ct {
-  padding: 4mm;
-  box-sizing: content-box;
+  min-height: 80mm;
   box-shadow: var(--sombra);
 }
 

@@ -617,11 +617,35 @@
   box-shadow: inset 4px 0 0 var(--pg-cor);
 }
 
-/* Código de barras: o título quebra em duas linhas e os 13 números podem quebrar (a lista nunca rola para o lado) */
-.lista-tabela .lista-barras {
-  white-space: normal;
-  overflow-wrap: anywhere;
+/*
+  Código de barras: título e os 13 números inteiros, numa linha só. Letra um pouco menor e sem o espaçamento do
+  título, para a coluna não ficar larga e não apertar as outras (o nome, a marca e o modelo é que quebram linha).
+*/
+.lista-tabela th.lista-barras {
+  letter-spacing: 0;
+  font-size: 0.7rem;
+}
+
+.lista-tabela td.lista-barras {
+  font-size: 0.84rem;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Caixinha de marcar para excluir (listas de cupons e orçamentos) */
+.lista-tabela .lista-marcar {
+  width: 2.5rem;
+  padding-right: 0;
+  cursor: default;
+}
+
+.lista-marcar input {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: var(--erro);
+  cursor: pointer;
 }
 
 .lista-tabela .numero {

@@ -7,7 +7,7 @@ const dataHora = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateSt
 
 const cidadeUf = (cidade: string | null, uf: string | null) => [cidade, uf].filter(Boolean).join('/')
 
-/** Cupom de venda para impressora térmica de 80 mm (também usado na pré-visualização da tela). */
+/** Cupom de venda para impressora térmica (papel de 58 mm de largura; também a pré-visualização da tela). */
 export function CupomTermico({ cupom, logoUrl }: { cupom: Cupom; logoUrl?: string | null }) {
   const enderecoEmitente = [cupom.emitenteEndereco, cidadeUf(cupom.emitenteCidade, cupom.emitenteUf)]
     .filter(Boolean)

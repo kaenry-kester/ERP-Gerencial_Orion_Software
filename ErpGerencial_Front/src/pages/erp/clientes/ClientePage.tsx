@@ -209,7 +209,7 @@ export default function ClientePage() {
 
                   <ValorFicha rotulo="Data de nascimento" valor={dia(cliente.dataNascimento)} className="c3" />
                   <ValorFicha rotulo="Cônjuge" valor={cliente.conjuge} className="c6" />
-                  <ValorFicha rotulo="Data da compra" valor={dia(cliente.dataCompra)} className="c3" />
+                  <ValorFicha rotulo="Data do cadastro" valor={dia(cliente.dataCompra)} className="c3" />
 
                   <ValorFicha rotulo="Celular" valor={formatarTelefone(cliente.celular)} icone="/imgs/whatsapp.png" className="c3" />
                   <ValorFicha rotulo="Celular 2" valor={telefone(cliente.celular2)} icone="/imgs/whatsapp.png" className="c3" />
@@ -229,7 +229,18 @@ export default function ClientePage() {
                     icone="/imgs/cifrao.svg"
                     className="c2"
                   />
-                  <ValorFicha rotulo="Observação" valor={cliente.observacao} className="c3" />
+                  {/* Uma observação só, da altura das duas linhas (1º e 2º aparelho) */}
+                  <ValorFicha rotulo="Observação" valor={cliente.observacao} linhas={3} className="c3 ficha-duas-linhas" />
+
+                  <ValorFicha rotulo="Item nº 2" valor={cliente.item2} className="c3" />
+                  <ValorFicha rotulo="Marca nº 2" valor={cliente.marca2} className="c2" />
+                  <ValorFicha rotulo="Modelo nº 2" valor={cliente.modelo2} className="c2" />
+                  <ValorFicha
+                    rotulo="Valor nº 2"
+                    valor={cliente.valor2 != null ? formatarMoeda(cliente.valor2) : null}
+                    icone="/imgs/cifrao.svg"
+                    className="c2"
+                  />
                 </div>
               </div>
 

@@ -1257,6 +1257,40 @@
   color: var(--azul-escuro);
 }
 
+/* Recapitulação ao ligar: mensagens de dias em que o Órion estava fechado */
+.mensagens-hoje-resumo span.atrasada,
+.mensagens-hoje-atrasada {
+  background: #fdf3e6;
+  color: #7a4a0c;
+}
+
+.mensagens-hoje-atrasada {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Etiqueta "Atrasada" e a situação, juntas na última coluna */
+.mensagens-hoje-fim {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.mensagens-hoje-recapitulacao {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: #fdf3e6;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: #7a4a0c;
+}
+
 .mensagens-hoje-resumo span.erro {
   background: var(--erro-fundo);
   color: var(--erro);

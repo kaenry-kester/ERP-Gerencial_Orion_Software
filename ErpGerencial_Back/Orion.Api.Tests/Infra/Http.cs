@@ -31,6 +31,7 @@ public static class Http
         await Ler(await http.PostAsJsonAsync(rota, corpo ?? new { }));
     public static async Task<Resposta> Put(this HttpClient http, string rota, object corpo) =>
         await Ler(await http.PutAsJsonAsync(rota, corpo));
+    public static async Task<Resposta> Delete(this HttpClient http, string rota) => await Ler(await http.DeleteAsync(rota));
 
     /// <summary>Produto simples com estoque, para vender.</summary>
     public static async Task<Resposta> NovoProduto(this HttpClient http, string nome, decimal preco, decimal quantidade,

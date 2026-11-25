@@ -128,7 +128,21 @@ export function OrcamentoFolha({
           <tr>
             <th scope="row">Cliente:</th>
             <td className="of-cliente-nome">
-              {campo('clienteNome', 'Cliente', { maxLength: 200, placeholder: 'Nome do cliente (busca no cadastro)' })}
+              {/* Nome e, na frente, o CPF/CNPJ */}
+              <div className="of-cliente-linha">
+                <span className="of-cliente-nome-campo">
+                  {campo('clienteNome', 'Cliente', { maxLength: 200, placeholder: 'Nome do cliente (busca no cadastro)' })}
+                </span>
+                {(editar || dados.clienteDocumento) && (
+                  <span className="of-cliente-documento">
+                    <span className="of-cliente-documento-rotulo">CPF/CNPJ:</span>
+                    {campo('clienteDocumento', 'CPF ou CNPJ do cliente', {
+                      maxLength: 18,
+                      placeholder: '000.000.000-00',
+                    })}
+                  </span>
+                )}
+              </div>
               {editar?.sugestoesCliente}
             </td>
           </tr>

@@ -268,6 +268,39 @@
   position: relative;
 }
 
+.of-editavel .of-cliente-nome {
+  padding: 0;
+}
+
+/* Nome do cliente e, na frente, o CPF/CNPJ (na mesma linha) */
+.of-cliente-linha {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+}
+
+.of-cliente-nome-campo {
+  flex: 1;
+  min-width: 0;
+}
+
+.of-cliente-documento {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1.5mm;
+  white-space: nowrap;
+}
+
+.of-cliente-documento-rotulo {
+  font-weight: 700;
+  color: var(--of-titulo);
+}
+
+.of-editavel .of-cliente-documento input {
+  width: 48mm;
+}
+
 .of-editavel textarea {
   resize: vertical;
   text-align: center;

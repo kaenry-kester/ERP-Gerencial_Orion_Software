@@ -130,6 +130,10 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             e.Property(c => c.Item).HasColumnName("item").HasMaxLength(120);
             e.Property(c => c.Marca).HasColumnName("marca").HasMaxLength(80);
             e.Property(c => c.Modelo).HasColumnName("modelo").HasMaxLength(80);
+            e.Property(c => c.Item2).HasColumnName("item2").HasMaxLength(120);
+            e.Property(c => c.Marca2).HasColumnName("marca2").HasMaxLength(80);
+            e.Property(c => c.Modelo2).HasColumnName("modelo2").HasMaxLength(80);
+            e.Property(c => c.Valor2).HasColumnName("valor2").HasPrecision(14, 2);
             e.Property(c => c.Observacao).HasColumnName("observacao").HasMaxLength(2000);
             e.Property(c => c.Valor).HasColumnName("valor").HasPrecision(14, 2);
             e.Property(c => c.DataCompra).HasColumnName("data_compra");
@@ -283,6 +287,7 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             e.Property(o => o.Observacao).HasColumnName("observacao").HasMaxLength(1000);
             e.Property(o => o.ClienteEndereco).HasColumnName("cliente_endereco").HasMaxLength(300);
             e.Property(o => o.ClienteTelefone).HasColumnName("cliente_telefone").HasMaxLength(30);
+            e.Property(o => o.ClienteDocumento).HasColumnName("cliente_documento").HasMaxLength(14);
             e.Property(o => o.Data).HasColumnName("data");
             e.Property(o => o.Condicoes).HasColumnName("condicoes").HasMaxLength(1000);
             e.Property(o => o.Total).HasColumnName("total").HasPrecision(14, 2);

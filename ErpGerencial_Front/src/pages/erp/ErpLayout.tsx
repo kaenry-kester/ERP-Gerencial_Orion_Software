@@ -59,14 +59,15 @@ export default function ErpLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessao?.token])
 
-  // Sessão renovada sozinha enquanto o sistema está aberto (o token vale 8 horas): quando faltam menos de 4 horas,
-  // pede um novo — a cada 15 minutos e ao voltar para a aba (ex.: depois do computador dormir).
+  // Sessão renovada sozinha enquanto o sistema está aberto (o token vale 30 dias): com mais de 1 dia de uso, pede um
+  // novo — confere a cada 15 minutos e ao voltar para a janela (ex.: depois do computador dormir ou ficar dias parado).
+  // Assim o sistema nunca "vence" no meio do uso e o que se digita não se perde por login vencido.
   useEffect(() => {
     if (!sessao) return
     const token = sessao.token
     const renovarSePreciso = () => {
       const vence = expiracaoDoToken(token)
-      if (vence && vence - Date.now() < 4 * 60 * 60 * 1000 && vence > Date.now())
+      if (vence && vence - Date.now() < 29 * 24 * 60 * 60 * 1000 && vence > Date.now())
         renovarSessao(token)
           .then((nova) => {
             salvarSessao(nova)
@@ -76,10 +77,13 @@ export default function ErpLayout() {
     }
     renovarSePreciso()
     const id = window.setInterval(renovarSePreciso, 15 * 60 * 1000)
+    const aoAparecer = () => document.visibilityState === 'visible' && renovarSePreciso()
     window.addEventListener('focus', renovarSePreciso)
+    document.addEventListener('visibilitychange', aoAparecer)
     return () => {
       window.clearInterval(id)
       window.removeEventListener('focus', renovarSePreciso)
+      document.removeEventListener('visibilitychange', aoAparecer)
     }
   }, [sessao?.token]) // eslint-disable-line react-hooks/exhaustive-deps
 

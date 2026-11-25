@@ -32,9 +32,11 @@ public record ConexaoWhatsappDto(string? Remetente, string Estado, string? QrCod
 /// Um cliente com mensagem automática programada para hoje (tela inicial), uma linha por cliente:
 /// "agendada" (ainda vai sair: Horario = o marcado), "enviada"/"teste" (Horario = o último envio) ou "erro" (não saiu).
 /// Enviadas = quantas saíram hoje (cliente com intervalo de minutos/horas recebe mais de uma por dia).
+/// Atrasada = era de um dia anterior (o Órion estava fechado): saiu hoje, ao ligar, ou ainda está na fila.
 /// </summary>
 public record MensagemHojeDto(
-    Guid ClienteId, string Nome, string Celular, DateTime Horario, string Situacao, string? Erro, int Enviadas = 0);
+    Guid ClienteId, string Nome, string Celular, DateTime Horario, string Situacao, string? Erro, int Enviadas = 0,
+    bool Atrasada = false);
 
 /// <summary>
 /// Mensagem automática da empresa (WhatsApp): a mensagem padrão, o número remetente e os últimos
@@ -192,7 +194,7 @@ public static class WhatsAppEndpoints
         var tentativas = await db.EnviosWhatsapp
             .Where(w => w.EmpresaId == usuario.EmpresaId
                 && (w.DataReferencia == hoje || (w.CriadoEm >= inicio && w.CriadoEm < fim)))
-            .Select(w => new { w.ClienteId, Nome = w.Cliente!.Nome, w.Telefone, w.CriadoEm, w.Status, w.Erro })
+            .Select(w => new { w.ClienteId, Nome = w.Cliente!.Nome, w.Telefone, w.CriadoEm, w.Status, w.Erro, w.DataReferencia })
             .ToListAsync();
         // Na fila: as de hoje e as atrasadas (saem assim que o WhatsApp estiver conectado)
         var pendentes = await db.Clientes
@@ -209,16 +211,19 @@ public static class WhatsAppEndpoints
             if (pendentes.Remove(cliente.Key, out var pendente))
                 // Ainda tem mensagem de hoje na fila (próximo horário, ou tentando de novo depois de uma falha)
                 linhas.Add(new MensagemHojeDto(cliente.Key, pendente.Nome, pendente.Celular, pendente.EnvioEm, "agendada",
-                    ultima.Status == "erro" ? ultima.Erro : null, enviadas.Count));
+                    ultima.Status == "erro" ? ultima.Erro : null, enviadas.Count, pendente.EnvioEm < inicio));
             else if (enviadas.Count > 0)
                 linhas.Add(new MensagemHojeDto(cliente.Key, ultima.Nome, ultima.Telefone, enviadas[^1].CriadoEm,
-                    enviadas[^1].Status == "teste" ? "teste" : "enviada", null, enviadas.Count));
+                    enviadas[^1].Status == "teste" ? "teste" : "enviada", null, enviadas.Count,
+                    enviadas[^1].DataReferencia < hoje));
             else
-                linhas.Add(new MensagemHojeDto(cliente.Key, ultima.Nome, ultima.Telefone, ultima.CriadoEm, "erro", ultima.Erro));
+                linhas.Add(new MensagemHojeDto(cliente.Key, ultima.Nome, ultima.Telefone, ultima.CriadoEm, "erro", ultima.Erro,
+                    Atrasada: ultima.DataReferencia < hoje));
         }
-        // Quem ainda não teve nenhuma tentativa hoje: vai sair no horário marcado
-        linhas.AddRange(pendentes.Values.Select(c => new MensagemHojeDto(c.Id, c.Nome, c.Celular, c.EnvioEm, "agendada", null)));
-        return Results.Ok(linhas.OrderBy(m => m.Horario).Take(200).ToList());
+        // Quem ainda não teve nenhuma tentativa hoje: vai sair no horário marcado (ou já, se ficou para trás)
+        linhas.AddRange(pendentes.Values.Select(c =>
+            new MensagemHojeDto(c.Id, c.Nome, c.Celular, c.EnvioEm, "agendada", null, Atrasada: c.EnvioEm < inicio)));
+        return Results.Ok(linhas.OrderBy(m => m.Horario).Take(1000).ToList());
     }
 
     /// <summary>O WhatsApp do número salvo está conectado?</summary>
