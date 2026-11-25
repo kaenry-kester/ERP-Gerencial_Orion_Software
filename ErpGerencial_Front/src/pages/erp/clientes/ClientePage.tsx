@@ -220,7 +220,7 @@ export default function ClientePage() {
 
               <div className="ficha-aparelho c12">
                 <div className="ficha-grade">
-                  <ValorFicha rotulo="Item" valor={cliente.item} className="c3" />
+                  <ValorFicha rotulo="Item" valor={cliente.item} className="c2" />
                   <ValorFicha rotulo="Marca" valor={cliente.marca} className="c2" />
                   <ValorFicha rotulo="Modelo" valor={cliente.modelo} className="c2" />
                   <ValorFicha
@@ -230,9 +230,9 @@ export default function ClientePage() {
                     className="c2"
                   />
                   {/* Uma observação só, da altura das duas linhas (1º e 2º aparelho) */}
-                  <ValorFicha rotulo="Observação" valor={cliente.observacao} linhas={3} className="c3 ficha-duas-linhas" />
+                  <ValorFicha rotulo="Observação" valor={cliente.observacao} linhas={3} className="c4 ficha-duas-linhas" />
 
-                  <ValorFicha rotulo="Item nº 2" valor={cliente.item2} className="c3" />
+                  <ValorFicha rotulo="Item nº 2" valor={cliente.item2} className="c2" />
                   <ValorFicha rotulo="Marca nº 2" valor={cliente.marca2} className="c2" />
                   <ValorFicha rotulo="Modelo nº 2" valor={cliente.modelo2} className="c2" />
                   <ValorFicha

@@ -498,7 +498,7 @@ export default function ClienteFormPage() {
             {/* Aparelho do cliente: item, marca, modelo, valor e uma observação livre; embaixo, um 2º aparelho (opcional) */}
             <div className="ficha-aparelho c12">
               <div className="ficha-grade">
-                <CampoFicha {...campo('item')} rotulo="Item" maxLength={120} placeholder="Ex.: Purificador" className="c3" />
+                <CampoFicha {...campo('item')} rotulo="Item" maxLength={120} placeholder="Ex.: Purificador" className="c2" />
                 <CampoFicha {...campo('marca')} rotulo="Marca" maxLength={80} className="c2" />
                 <CampoFicha {...campo('modelo')} rotulo="Modelo" maxLength={80} className="c2" />
                 <CampoFicha
@@ -515,10 +515,10 @@ export default function ClienteFormPage() {
                   rotulo="Observação"
                   maxLength={2000}
                   linhas={3}
-                  className="c3 ficha-duas-linhas"
+                  className="c4 ficha-duas-linhas"
                 />
 
-                <CampoFicha {...campo('item2')} rotulo="Item nº 2 (opcional)" maxLength={120} className="c3" />
+                <CampoFicha {...campo('item2')} rotulo="Item nº 2 (opcional)" maxLength={120} className="c2" />
                 <CampoFicha {...campo('marca2')} rotulo="Marca nº 2 (opcional)" maxLength={80} className="c2" />
                 <CampoFicha {...campo('modelo2')} rotulo="Modelo nº 2 (opcional)" maxLength={80} className="c2" />
                 <CampoFicha

@@ -632,6 +632,27 @@
   letter-spacing: -0.01em;
 }
 
+/* Listas de produtos e de clientes: letra com 80% do tamanho das outras listas (pedido da loja) */
+.lista-tabela.lista-letra-menor {
+  font-size: 0.72rem;
+}
+
+.lista-tabela.lista-letra-menor th {
+  font-size: 0.61rem;
+}
+
+.lista-tabela.lista-letra-menor th.lista-barras {
+  font-size: 0.56rem;
+}
+
+.lista-tabela.lista-letra-menor td.lista-barras {
+  font-size: 0.67rem;
+}
+
+.lista-tabela.lista-letra-menor .lista-etiqueta {
+  font-size: 0.67rem;
+}
+
 /* Caixinha de marcar para excluir (listas de cupons e orçamentos) */
 .lista-tabela .lista-marcar {
   width: 2.5rem;
@@ -972,6 +993,15 @@ button.lista-capa-imagem:focus-visible {
     grid-column: 1 / -1;
     order: -2;
     font-size: 1.02rem;
+  }
+
+  /* Listas de produtos e de clientes: 80% também no celular */
+  .lista-tabela.lista-letra-menor td[data-rotulo]::before {
+    font-size: 0.56rem;
+  }
+
+  .lista-tabela.lista-letra-menor td.lista-principal {
+    font-size: 0.82rem;
   }
 
   /* ID logo depois do nome, como os outros dados */

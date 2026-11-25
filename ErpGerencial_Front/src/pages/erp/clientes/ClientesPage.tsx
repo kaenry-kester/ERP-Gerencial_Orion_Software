@@ -134,7 +134,7 @@ export default function ClientesPage() {
           <>
             {/* Complemento e CEP aparecem só nos detalhes; em telas estreitas cada linha vira um cartão */}
             <div className="lista-tabela-area">
-              <table className="lista-tabela">
+              <table className="lista-tabela lista-letra-menor">
                 <thead>
                   <tr>
                     <th scope="col" className="lista-id">ID</th>
