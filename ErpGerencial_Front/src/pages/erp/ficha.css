@@ -243,6 +243,13 @@
   flex-shrink: 0;
 }
 
+/* Valor curto (telefone, CPF/CNPJ, data...): ocupa a caixa toda; se não couber, a letra diminui (ValorFicha) */
+.ficha-valor.curto > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-overflow: clip;
+}
+
 .ficha-valor.longo {
   align-items: flex-start;
   padding-block: 0.3rem;

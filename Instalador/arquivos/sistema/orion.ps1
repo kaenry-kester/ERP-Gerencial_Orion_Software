@@ -76,8 +76,39 @@ function BancoLigado {
   return $LASTEXITCODE -eq 0
 }
 
+# Computador desligado sem "Parar Orion" (queda de energia, desligamento forçado): o banco deixa o arquivo de trava
+# postmaster.pid para trás. Se o número dele não é de um banco DESTA pasta ligado agora, a trava é velha: sai.
+# (Só a trava; os dados não são tocados. Sem isso o banco pode não ligar, ou parecer ligado sem estar.)
+function DestravarBanco {
+  $trava = Join-Path $pastaBanco 'postmaster.pid'
+  if (-not (Test-Path $trava)) { return }
+  $id = 0
+  [void][int]::TryParse(((Get-Content $trava -TotalCount 1) -as [string]), [ref]$id)
+  $processo = if ($id -gt 0) { Get-Process -Id $id -ErrorAction SilentlyContinue } else { $null }
+  $caminho = if ($processo) { try { $processo.Path } catch { $null } } else { $null }
+  if ($processo -and $processo.ProcessName -eq 'postgres' -and $caminho -and $caminho.StartsWith($pgBin, [StringComparison]::OrdinalIgnoreCase)) { return }
+  Remove-Item $trava -Force
+  Escrever 'O banco de dados tinha ficado travado (o computador foi desligado sem "Parar Orion"). Destravado.' 'Yellow'
+}
+
+# Porta do banco ocupada por outro programa (ex.: outra cópia do Órion aberta em outra pasta): explica o que fazer
+function ConferirPortaDoBanco($config) {
+  $ocupada = Get-NetTCPConnection -State Listen -LocalPort $config.portaBanco -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $ocupada) { return }
+  $dono = Get-Process -Id $ocupada.OwningProcess -ErrorAction SilentlyContinue
+  $caminho = if ($dono) { try { $dono.Path } catch { $null } } else { $null }
+  if ($caminho -and $caminho -match '\\sistema\\banco\\bin\\') {
+    $outra = Split-Path (Split-Path (Split-Path (Split-Path $caminho)))
+    throw "Outra cópia do Órion está aberta em: $outra`nAbra essa pasta, clique em 'Parar Orion' e depois abra o Órion de novo (seus dados estão salvos)."
+  }
+  $nome = if ($dono) { $dono.ProcessName } else { 'desconhecido' }
+  throw "A porta $($config.portaBanco) do banco de dados está sendo usada por outro programa ($nome). Feche-o ou reinicie o computador."
+}
+
 function LigarBanco($config) {
+  DestravarBanco
   if (BancoLigado) { return }
+  ConferirPortaDoBanco $config
   Escrever 'Ligando o banco de dados...'
   # Processo separado e escondido: o banco continua ligado sem prender esta janela
   $p = Start-Process -FilePath (Join-Path $pgBin 'pg_ctl.exe') -WindowStyle Hidden -PassThru `
@@ -96,6 +127,10 @@ function Psql($config, [string]$banco, [string]$comando) {
 function PrimeiraVez {
   New-Item -ItemType Directory -Force -Path $dados, $logs | Out-Null
   if (Test-Path $arquivoConfig) { return }
+  # Banco já existe sem a configuração: nunca cria outro por cima (os dados estão nele)
+  if (Test-Path (Join-Path $pastaBanco 'PG_VERSION')) {
+    throw "A pasta $pastaBanco já tem um banco de dados, mas o arquivo $arquivoConfig sumiu. Nada foi apagado: copie de volta a pasta 'dados' inteira da instalação anterior."
+  }
   Escrever 'Primeira vez: preparando o Órion (leva cerca de 1 minuto)...' 'Cyan'
   $config = [pscustomobject]@{
     senhaBanco      = NovaChave 16
@@ -122,6 +157,21 @@ function PrimeiraVez {
   Psql $config 'postgres' 'CREATE DATABASE evolution' | Out-Null
   New-Item -ItemType Directory -Force -Path $config.pastaCopias | Out-Null
   Escrever "Cópias de segurança: $($config.pastaCopias)" 'Green'
+  AvisarCopiasAnteriores $config
+}
+
+# Pasta nova, mas já existem cópias de segurança de uma instalação anterior (ex.: o zip novo foi extraído em outro
+# lugar, sem a pasta "dados" da antiga): avisa que os dados estão lá e como trazer, em vez de parecer que sumiram.
+function AvisarCopiasAnteriores($config) {
+  $copias = @(Get-ChildItem -Path $config.pastaCopias -Filter 'orion-*.dump' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+  if ($copias.Count -eq 0) { return }
+  Escrever "`n================================  ATENÇÃO  ================================" 'Yellow'
+  Escrever 'Este Órion foi aberto pela primeira vez NESTA pasta, então ele começa vazio.' 'Yellow'
+  Escrever "Mas existem $($copias.Count) cópia(s) de segurança de uma instalação anterior (a mais recente de $($copias[0].LastWriteTime.ToString('dd/MM/yyyy HH:mm')))." 'Yellow'
+  Escrever 'Os dados NÃO foram perdidos. Para trazê-los para cá, feche esta janela e clique em' 'Yellow'
+  Escrever '"Restaurar copia de seguranca" (escolha a 1, a mais recente).' 'Yellow'
+  Escrever 'Ou use a pasta antiga do Órion, que tem a pasta "dados" com tudo.' 'Yellow'
+  Escrever "==========================================================================`n" 'Yellow'
 }
 
 function PrepararWhatsapp($config) {
@@ -173,6 +223,33 @@ LANGUAGE=pt-BR
     if ($LASTEXITCODE -ne 0) { throw "Não foi possível preparar o WhatsApp. Veja $logs\whatsapp-preparo.log" }
   } finally { Pop-Location }
   $config.whatsappPronto = $true
+  SalvarConfig $config
+}
+
+# Versão nova do Órion (zip novo): antes de ela atualizar o banco, faz uma cópia de segurança. Sem cópia, não abre.
+function CopiaAntesDeAtualizar($config) {
+  $versao = (Get-FileHash (Join-Path $sistema 'app\Orion.Api.dll') -Algorithm SHA256).Hash
+  $anterior = if ($config.PSObject.Properties['versaoApp']) { $config.versaoApp } else { $null }
+  if ($anterior -eq $versao) { return }
+  # Banco ainda sem tabelas (primeira vez): não há o que copiar
+  # (Sem aspas duplas no SQL: o Windows PowerShell as corta ao repassar para o psql)
+  $temDados = ((Psql $config 'orion' "SELECT count(*) FROM pg_tables WHERE tablename = '__EFMigrationsHistory'") -join '').Trim() -eq '1'
+  if ($temDados) {
+    Escrever 'Versão nova do Órion: fazendo uma cópia de segurança antes de atualizar...'
+    $pasta = $config.pastaCopias
+    try { New-Item -ItemType Directory -Force -Path $pasta -ErrorAction Stop | Out-Null }
+    catch { $pasta = Join-Path $dados 'copias'; New-Item -ItemType Directory -Force -Path $pasta | Out-Null }
+    $arquivo = Join-Path $pasta ('orion-{0:yyyy-MM-dd-HHmmss}.dump' -f (Get-Date))
+    $env:PGPASSWORD = $config.senhaBanco
+    Nativo { & (Join-Path $pgBin 'pg_dump.exe') --format=custom --no-owner --no-privileges -h localhost -p $config.portaBanco -U postgres --file "$arquivo.parcial" orion *> (Join-Path $logs 'copia-atualizacao.log') }
+    if ($LASTEXITCODE -ne 0) {
+      Remove-Item "$arquivo.parcial" -ErrorAction SilentlyContinue
+      throw "Não consegui fazer a cópia de segurança antes de atualizar, então não abri a versão nova (nada foi mudado). Veja $logs\copia-atualizacao.log"
+    }
+    Move-Item "$arquivo.parcial" $arquivo -Force
+    Escrever "Cópia feita: $arquivo" 'Green'
+  }
+  $config | Add-Member -NotePropertyName versaoApp -NotePropertyValue $versao -Force
   SalvarConfig $config
 }
 
@@ -240,6 +317,7 @@ function Iniciar {
     Set-Content (Join-Path $dados 'whatsapp.pid') $p.Id
   }
 
+  CopiaAntesDeAtualizar $config
   Escrever 'Abrindo o Órion...'
   VariaveisDoSistema $config
   $p = Start-Process -FilePath $api -WorkingDirectory (Split-Path $api) -WindowStyle Hidden -PassThru `

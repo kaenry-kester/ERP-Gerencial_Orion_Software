@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import './ficha.css'
 
 type Props = {
@@ -12,14 +13,43 @@ type Props = {
   linhas?: number
 }
 
+/** Menor letra a que um valor curto chega para caber na caixa (em pixels). */
+const LETRA_MINIMA = 8
+
+/**
+ * Valor curto (telefone, CPF/CNPJ, data...) sempre inteiro numa linha: se não couber na caixa, a letra diminui só o
+ * necessário. Refaz a conta quando a caixa muda de tamanho (tela menor, janela redimensionada).
+ */
+function useCaberNaCaixa(ativo: boolean, texto: string) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const span = ref.current
+    if (!ativo || !span?.parentElement) return
+    const ajustar = () => {
+      span.style.fontSize = ''
+      let tamanho = parseFloat(getComputedStyle(span).fontSize)
+      while (span.scrollWidth > span.clientWidth && tamanho > LETRA_MINIMA) {
+        tamanho -= 0.25
+        span.style.fontSize = `${tamanho}px`
+      }
+    }
+    ajustar()
+    const observador = new ResizeObserver(ajustar)
+    observador.observe(span.parentElement)
+    return () => observador.disconnect()
+  }, [ativo, texto])
+  return ref
+}
+
 /**
  * Campo da ficha só para ver (páginas de detalhes do cliente e do produto): o mesmo rótulo em negrito e a mesma
  * caixa retangular do CampoFicha do cadastro, com o valor salvo dentro.
  */
 export default function ValorFicha({ rotulo, valor, className, icone, linhas }: Props) {
   const texto = valor?.trim() ? valor : '—'
-  // Valor curto (telefone, CPF/CNPJ, data, CEP, R$...): sempre numa linha só, nunca partido em duas
+  // Valor curto (telefone, CPF/CNPJ, data, CEP, R$...): sempre numa linha só e inteiro, nunca partido nem cortado
   const curto = !linhas && texto.length <= 20
+  const ref = useCaberNaCaixa(curto, texto)
   return (
     <div className={['ficha-campo', className].filter(Boolean).join(' ')}>
       <div className="ficha-cabecalho">
@@ -31,7 +61,7 @@ export default function ValorFicha({ rotulo, valor, className, icone, linhas }: 
         title={linhas ? undefined : texto}
       >
         {icone && <img src={icone} alt="" aria-hidden="true" />}
-        <span>{texto}</span>
+        <span ref={ref}>{texto}</span>
       </div>
     </div>
   )
