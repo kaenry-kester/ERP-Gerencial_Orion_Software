@@ -44,4 +44,42 @@ public class ClienteTests(ApiDeTeste api)
         Assert.Equal("FX-2", criado.Texto("modelo2"));
         Assert.Equal(89.5m, criado.Decimal("valor2"));
     }
+
+    [Fact]
+    public async Task Guarda_substitui_e_mantem_os_lembretes()
+    {
+        var http = (await api.NovaConta()).Http;
+        var criado = await http.Post("/api/clientes", new
+        {
+            nome = "Lia Lembrete", celular = "16988881111",
+            lembretes = new[] { new { data = "2026-12-20", texto = "  Ligar para o cliente  " }, new { data = "2026-12-05", texto = "Levar filtro" } },
+        });
+        Assert.True(criado.Status == HttpStatusCode.Created, criado.ToString());
+        var id = criado.Texto("id");
+
+        // Ao abrir: por data, com o texto sem espaços sobrando
+        var lista = (await http.Get($"/api/clientes/{id}"))["lembretes"].EnumerateArray().ToList();
+        Assert.Equal(["2026-12-05", "2026-12-20"], lista.Select(l => l.GetProperty("data").GetString()));
+        Assert.Equal("Ligar para o cliente", lista[1].GetProperty("texto").GetString());
+
+        // Editar sem mandar a lista: ficam como estão
+        var semLista = await http.Put($"/api/clientes/{id}", new { nome = "Lia Lembrete", celular = "16988881111" });
+        Assert.Equal(2, semLista["lembretes"].GetArrayLength());
+
+        // A lista que vem substitui a salva
+        var trocado = await http.Put($"/api/clientes/{id}", new
+        {
+            nome = "Lia Lembrete", celular = "16988881111", lembretes = new[] { new { data = "2027-01-10", texto = "Revisão" } },
+        });
+        var novos = trocado["lembretes"].EnumerateArray().ToList();
+        Assert.Single(novos);
+        Assert.Equal("Revisão", novos[0].GetProperty("texto").GetString());
+
+        // Lembrete vazio não passa
+        var vazio = await http.Put($"/api/clientes/{id}", new
+        {
+            nome = "Lia Lembrete", celular = "16988881111", lembretes = new[] { new { data = "2027-01-10", texto = " " } },
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, vazio.Status);
+    }
 }

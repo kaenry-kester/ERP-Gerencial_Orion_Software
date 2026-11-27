@@ -258,6 +258,38 @@ namespace Orion.Api.Migrations
                     b.ToTable("cliente_fotos", (string)null);
                 });
 
+            modelBuilder.Entity("Orion.Api.Data.ClienteLembrete", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cliente_id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateOnly>("Data")
+                        .HasColumnType("date")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Texto")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("texto");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId", "Data");
+
+                    b.ToTable("cliente_lembretes", (string)null);
+                });
+
             modelBuilder.Entity("Orion.Api.Data.CodigoLogin", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1228,6 +1260,17 @@ namespace Orion.Api.Migrations
                 });
 
             modelBuilder.Entity("Orion.Api.Data.ClienteFoto", b =>
+                {
+                    b.HasOne("Orion.Api.Data.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("Orion.Api.Data.ClienteLembrete", b =>
                 {
                     b.HasOne("Orion.Api.Data.Cliente", "Cliente")
                         .WithMany()

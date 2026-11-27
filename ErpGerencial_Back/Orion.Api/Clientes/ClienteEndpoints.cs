@@ -47,7 +47,13 @@ public record ClienteRequest(
     string? Item2 = null,
     string? Marca2 = null,
     string? Modelo2 = null,
-    decimal? Valor2 = null);
+    decimal? Valor2 = null,
+    /// <summary>Lembretes do calendário: a lista inteira, que substitui a salva. Vazio (null): ficam como estão.</summary>
+    List<LembreteRequest>? Lembretes = null);
+
+public record LembreteRequest(DateOnly Data, string? Texto);
+
+public record LembreteDto(Guid Id, DateOnly Data, string Texto);
 
 /// <summary>Mensagem personalizada de um cliente (vazia: volta a usar a mensagem padrão da empresa).</summary>
 public record MensagemClienteRequest(string? Mensagem);
@@ -97,7 +103,9 @@ public record ClienteDto(
     string? Item2,
     string? Marca2,
     string? Modelo2,
-    decimal? Valor2);
+    decimal? Valor2,
+    /// <summary>Lembretes do calendário (por data). Só vem ao abrir um cliente; na lista, vazio (null).</summary>
+    List<LembreteDto>? Lembretes = null);
 
 public record ListaClientes(List<ClienteDto> Itens, int Total, int Pagina, int TamanhoPagina);
 
@@ -113,6 +121,8 @@ public static class ClienteEndpoints
     private const string TipoMeses = "meses";
     /// <summary>O site reduz a foto antes de enviar; isto é só o teto.</summary>
     private const int FotoTamanhoMaximo = 5 * 1024 * 1024;
+    private const int LembretesMaximo = 200;
+    private const int LembreteTamanhoMaximo = 200;
 
     public static void MapClienteEndpoints(this WebApplication app)
     {
@@ -191,6 +201,8 @@ public static class ClienteEndpoints
         var cliente = new Cliente { EmpresaId = usuario.EmpresaId, Nome = "", Celular = "" };
         Preencher(cliente, req);
         db.Clientes.Add(cliente);
+        var lembretes = NovosLembretes(cliente.Id, req.Lembretes);
+        db.ClienteLembretes.AddRange(lembretes);
 
         // O ID sequencial é o maior da empresa + 1; se dois cadastros chegarem juntos, tenta de novo.
         for (var tentativa = 0; ; tentativa++)
@@ -208,7 +220,7 @@ public static class ClienteEndpoints
             }
         }
 
-        return Results.Created($"/api/clientes/{cliente.Id}", Dto(cliente, null, null));
+        return Results.Created($"/api/clientes/{cliente.Id}", Dto(cliente, null, null) with { Lembretes = ParaDto(lembretes) });
     }
 
     private static async Task<IResult> Editar(Guid id, ClienteRequest req, ClaimsPrincipal user, OrionDbContext db)
@@ -224,9 +236,21 @@ public static class ClienteEndpoints
 
         Preencher(cliente, req);
         cliente.AtualizadoEm = DateTime.UtcNow;
+        // Lembretes: a lista que veio substitui a salva (na mesma gravação do cadastro)
+        if (req.Lembretes is not null)
+        {
+            db.ClienteLembretes.RemoveRange(await db.ClienteLembretes.Where(l => l.ClienteId == id).ToListAsync());
+            db.ClienteLembretes.AddRange(NovosLembretes(id, req.Lembretes));
+        }
         await db.SaveChangesAsync();
         return Results.Ok(await DtoCompleto(db, cliente));
     }
+
+    private static List<ClienteLembrete> NovosLembretes(Guid clienteId, List<LembreteRequest>? lista) =>
+        (lista ?? []).Select(l => new ClienteLembrete { ClienteId = clienteId, Data = l.Data, Texto = l.Texto!.Trim() }).ToList();
+
+    private static List<LembreteDto> ParaDto(IEnumerable<ClienteLembrete> lembretes) =>
+        lembretes.OrderBy(l => l.Data).ThenBy(l => l.CriadoEm).Select(l => new LembreteDto(l.Id, l.Data, l.Texto)).ToList();
 
     /// <summary>Botão "Cancelar envios automáticos": apaga o próximo envio e o intervalo (nada mais é enviado).</summary>
     private static async Task<IResult> CancelarEnvios(Guid id, ClaimsPrincipal user, OrionDbContext db)
@@ -294,11 +318,12 @@ public static class ClienteEndpoints
         return Results.File(foto.Dados, foto.TipoConteudo);
     }
 
-    /// <summary>O cliente com a foto e a imagem da mensagem personalizada.</summary>
+    /// <summary>O cliente com a foto, a imagem da mensagem personalizada e os lembretes do calendário.</summary>
     private static async Task<ClienteDto> DtoCompleto(OrionDbContext db, Cliente c) =>
         Dto(c,
             await db.ClienteFotos.Where(f => f.ClienteId == c.Id).Select(f => (Guid?)f.Id).SingleOrDefaultAsync(),
-            await db.MensagemImagens.Where(i => i.ClienteId == c.Id).Select(i => (Guid?)i.Id).SingleOrDefaultAsync());
+            await db.MensagemImagens.Where(i => i.ClienteId == c.Id).Select(i => (Guid?)i.Id).SingleOrDefaultAsync())
+        with { Lembretes = ParaDto(await db.ClienteLembretes.Where(l => l.ClienteId == c.Id).ToListAsync()) };
 
     /// <summary>Tipo pelo começo do arquivo (não confia na extensão nem no que o navegador diz).</summary>
     public static string? TipoDaFoto(byte[] d) => d switch
@@ -404,6 +429,15 @@ public static class ClienteEndpoints
             var utc = envio.ToUniversalTime();
             if (utc <= DateTime.UtcNow.AddSeconds(30)) erros["envioEm"] = ["Escolha uma data e horário futuros"];
             else if (utc > DateTime.UtcNow.AddYears(AnosMaximo)) erros["envioEm"] = [$"No máximo {AnosMaximo} anos à frente"];
+        }
+
+        if (req.Lembretes is { } lembretes)
+        {
+            if (lembretes.Count > LembretesMaximo) erros["lembretes"] = [$"No máximo {LembretesMaximo} lembretes"];
+            else if (lembretes.Any(l => string.IsNullOrWhiteSpace(l.Texto))) erros["lembretes"] = ["Escreva o lembrete"];
+            else if (lembretes.Any(l => l.Texto!.Trim().Length > LembreteTamanhoMaximo))
+                erros["lembretes"] = [$"Lembrete com no máximo {LembreteTamanhoMaximo} letras"];
+            else if (lembretes.Any(l => l.Data.Year is < 2000 or > 2100)) erros["lembretes"] = ["Data do lembrete inválida"];
         }
         return erros;
     }

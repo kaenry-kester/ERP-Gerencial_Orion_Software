@@ -17,6 +17,7 @@ import {
   urlFotoCliente,
   type Cliente,
   type DadosCliente,
+  type Lembrete,
 } from '../../../services/api'
 import {
   apenasDigitos,
@@ -30,6 +31,7 @@ import {
   normalizarCnpj,
   telefoneValido,
 } from '../../../utils/validacao'
+import { linkWhatsapp } from '../../../utils/whatsapp'
 import AvisoPagina from '../AvisoPagina'
 import { useErp } from '../contexto'
 import FaixaPagina from '../FaixaPagina'
@@ -51,7 +53,7 @@ import '../../../styles/acesso.css'
 import './clientes.css'
 
 /** Próximo envio: dia (calendário) e horário, em campos separados. */
-type Campo = keyof Omit<DadosCliente, 'envioEm' | 'manterEnvio'> | 'envioDia' | 'envioHora'
+type Campo = keyof Omit<DadosCliente, 'envioEm' | 'manterEnvio' | 'lembretes'> | 'envioDia' | 'envioHora'
 type Valores = Record<Campo, string>
 
 const VAZIO: Valores = {
@@ -198,6 +200,9 @@ const paraApi = ({ envioDia, envioHora, ...v }: Valores): DadosCliente => ({
   envioEm: envioDosCampos({ envioDia, envioHora } as Valores)?.toISOString() ?? null,
 })
 
+/** Lembretes salvos do cliente (só data e texto: a lista inteira volta ao salvar). */
+const paraLembretes = (c: Cliente | null): Lembrete[] => (c?.lembretes ?? []).map(({ data, texto }) => ({ data, texto }))
+
 /** @param envioSalvo o envio já marcado (na edição): ele não precisa estar no futuro. */
 function validar(v: Valores, envioSalvo: string | null | undefined): Partial<Record<Campo, string>> {
   const erros: Partial<Record<Campo, string>> = {}
@@ -242,6 +247,8 @@ export default function ClienteFormPage() {
   const sessaoExpirada = useSessaoExpirada()
   const [original, setOriginal] = useState<Cliente | null>(null)
   const [valores, setValores] = useState<Valores>(VAZIO)
+  // Lembretes do calendário: gravados junto com o cadastro, ao salvar
+  const [lembretes, setLembretes] = useState<Lembrete[]>([])
   const [foto, setFoto] = useState<Foto>({ tipo: 'salva' })
   const [enviado, setEnviado] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -265,6 +272,7 @@ export default function ClienteFormPage() {
         cepBuscado.current = c.cep ?? ''
         setOriginal(c)
         setValores(paraFormulario(c))
+        setLembretes(paraLembretes(c))
       })
       .catch((e) => ativo && !sessaoExpirada(e) && setAviso({ tipo: 'erro', texto: mensagemDe(e) }))
     return () => {
@@ -362,7 +370,10 @@ export default function ClienteFormPage() {
 
   /** A mensagem é a geral, para todos os clientes: leva à página dela (o que não foi salvo aqui se perde). */
   const irParaMensagemGeral = () => {
-    const mudou = JSON.stringify(valores) !== JSON.stringify(original ? paraFormulario(original) : VAZIO) || foto.tipo !== 'salva'
+    const mudou =
+      JSON.stringify(valores) !== JSON.stringify(original ? paraFormulario(original) : VAZIO) ||
+      JSON.stringify(lembretes) !== JSON.stringify(paraLembretes(original)) ||
+      foto.tipo !== 'salva'
     if (mudou && !window.confirm('Ir para a mensagem do WhatsApp? O que você preencheu nesta ficha e ainda não salvou será perdido.'))
       return
     navigate('/app/clientes/mensagem')
@@ -384,8 +395,8 @@ export default function ClienteFormPage() {
       const intocado = paraCamposEnvio(original?.envioEm ?? null)
       const manterEnvio = valores.envioDia === intocado.envioDia && valores.envioHora === intocado.envioHora
       const cliente = novo
-        ? await criarCliente(sessao.token, paraApi(valores))
-        : await editarCliente(sessao.token, id!, { ...paraApi(valores), manterEnvio })
+        ? await criarCliente(sessao.token, { ...paraApi(valores), lembretes })
+        : await editarCliente(sessao.token, id!, { ...paraApi(valores), manterEnvio, lembretes })
       const falhas = await salvarExtras(cliente.id)
       if (falhas) {
         // O cadastro foi salvo; só a foto não: mostra o aviso na ficha do cliente
@@ -488,8 +499,28 @@ export default function ClienteFormPage() {
                 <CampoFicha {...campo('conjuge')} rotulo="Cônjuge" maxLength={200} className="c6" />
                 <CampoFicha {...campo('dataCompra')} rotulo="Data do cadastro" type="date" className="c3" />
 
-                <CampoFicha {...campo('celular')} rotulo="Celular" obrigatorio type="tel" inputMode="numeric" icone="/imgs/whatsapp.png" className="c3" />
-                <CampoFicha {...campo('celular2')} rotulo="Celular 2" type="tel" inputMode="numeric" icone="/imgs/whatsapp.png" className="c3" />
+                {/* Ícone do WhatsApp: com o número completo, abre a conversa com ele numa aba nova */}
+                <CampoFicha
+                  {...campo('celular')}
+                  rotulo="Celular"
+                  obrigatorio
+                  type="tel"
+                  inputMode="numeric"
+                  icone="/imgs/whatsapp.png"
+                  linkIcone={linkWhatsapp(valores.celular)}
+                  dicaIcone="Abrir conversa no WhatsApp com este número"
+                  className="c3"
+                />
+                <CampoFicha
+                  {...campo('celular2')}
+                  rotulo="Celular 2"
+                  type="tel"
+                  inputMode="numeric"
+                  icone="/imgs/whatsapp.png"
+                  linkIcone={linkWhatsapp(valores.celular2)}
+                  dicaIcone="Abrir conversa no WhatsApp com este número"
+                  className="c3"
+                />
                 <CampoFicha {...campo('telefoneResidencial')} rotulo="Fone residencial" type="tel" inputMode="numeric" className="c3" />
                 <CampoFicha {...campo('telefoneComercial')} rotulo="Fone comercial" type="tel" inputMode="numeric" className="c3" />
               </div>
@@ -566,7 +597,14 @@ export default function ClienteFormPage() {
                   <CalendarioEnvio
                     id="cliente-envioDia"
                     dia={valores.envioDia}
+                    hora={valores.envioHora}
                     agendados={agendados}
+                    lembretes={lembretes}
+                    onLembretes={(lista) => {
+                      setLembretes(lista)
+                      setErroServidor({})
+                      setAviso(null)
+                    }}
                     mesesMaximo={INTERVALO_MAXIMO}
                     erro={erros.envioDia}
                     onEscolher={campo('envioDia').onChange}
@@ -581,16 +619,16 @@ export default function ClienteFormPage() {
                         Clique no dia do próximo envio. Os seguintes saem no mesmo intervalo.
                       </p>
                     )}
+                    {/* Logo abaixo do horário: a mensagem (a mesma para todos os clientes) e, embaixo dela, cancelar */}
+                    <button type="button" className="ficha-envio-mensagem" onClick={irParaMensagemGeral}>
+                      <img src="/imgs/whatsapp.png" alt="" aria-hidden="true" />
+                      Mensagem do WhatsApp
+                    </button>
                     {(diaValido || original?.envioEm) && (
                       <button type="button" className="ficha-envio-cancelar" onClick={cancelarEnvios} disabled={cancelando}>
                         {cancelando ? 'Cancelando...' : 'Cancelar envios automáticos'}
                       </button>
                     )}
-                    {/* A mensagem que sai nas datas do calendário é a mesma para todos os clientes */}
-                    <button type="button" className="ficha-envio-mensagem" onClick={irParaMensagemGeral}>
-                      <img src="/imgs/whatsapp.png" alt="" aria-hidden="true" />
-                      Mensagem do WhatsApp
-                    </button>
                   </div>
                 </div>
               </section>

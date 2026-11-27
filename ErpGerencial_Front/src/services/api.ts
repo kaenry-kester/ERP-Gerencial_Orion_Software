@@ -385,6 +385,15 @@ export type Cliente = {
   marca2: string | null
   modelo2: string | null
   valor2: number | null
+  /** Lembretes do calendário (só ao abrir um cliente; na lista vem null). */
+  lembretes?: Lembrete[] | null
+}
+
+/** Lembrete marcado num dia do calendário do cliente. */
+export type Lembrete = {
+  /** "2026-12-14" */
+  data: string
+  texto: string
 }
 
 export type DadosCliente = {
@@ -426,6 +435,8 @@ export type DadosCliente = {
   marca2: string
   modelo2: string
   valor2: number | null
+  /** Lista inteira dos lembretes (substitui a salva); sem ela, ficam como estão. */
+  lembretes?: Lembrete[]
 }
 
 export type TipoIntervalo = 'meses' | 'data'

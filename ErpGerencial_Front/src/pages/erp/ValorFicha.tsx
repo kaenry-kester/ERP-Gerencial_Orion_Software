@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
+import { IconeFicha } from './CampoFicha'
 import './ficha.css'
 
 type Props = {
@@ -9,6 +10,10 @@ type Props = {
   className?: string
   /** Imagem pequena à esquerda do valor (ex.: "/imgs/whatsapp.png"). */
   icone?: string
+  /** Endereço aberto ao clicar no ícone, numa aba nova (ex.: a conversa no WhatsApp); sem ele, o ícone não clica. */
+  linkIcone?: string | null
+  /** Dica do ícone clicável. */
+  dicaIcone?: string
   /** Texto longo (ex.: observação): caixa mais alta, com quebra de linha. */
   linhas?: number
 }
@@ -45,7 +50,7 @@ function useCaberNaCaixa(ativo: boolean, texto: string) {
  * Campo da ficha só para ver (páginas de detalhes do cliente e do produto): o mesmo rótulo em negrito e a mesma
  * caixa retangular do CampoFicha do cadastro, com o valor salvo dentro.
  */
-export default function ValorFicha({ rotulo, valor, className, icone, linhas }: Props) {
+export default function ValorFicha({ rotulo, valor, className, icone, linkIcone, dicaIcone, linhas }: Props) {
   const texto = valor?.trim() ? valor : '—'
   // Valor curto (telefone, CPF/CNPJ, data, CEP, R$...): sempre numa linha só e inteiro, nunca partido nem cortado
   const curto = !linhas && texto.length <= 20
@@ -60,7 +65,7 @@ export default function ValorFicha({ rotulo, valor, className, icone, linhas }: 
         style={linhas ? { minHeight: `${linhas * 1.3 + 0.6}em` } : undefined}
         title={linhas ? undefined : texto}
       >
-        {icone && <img src={icone} alt="" aria-hidden="true" />}
+        {icone && <IconeFicha icone={icone} link={linkIcone} dica={dicaIcone} />}
         <span ref={ref}>{texto}</span>
       </div>
     </div>

@@ -10,6 +10,7 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
     public DbSet<ProdutoImagem> ProdutoImagens => Set<ProdutoImagem>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<ClienteFoto> ClienteFotos => Set<ClienteFoto>();
+    public DbSet<ClienteLembrete> ClienteLembretes => Set<ClienteLembrete>();
     public DbSet<EnvioWhatsapp> EnviosWhatsapp => Set<EnvioWhatsapp>();
     public DbSet<MensagemImagem> MensagemImagens => Set<MensagemImagem>();
     public DbSet<CodigoLogin> CodigosLogin => Set<CodigoLogin>();
@@ -167,6 +168,19 @@ public class OrionDbContext(DbContextOptions<OrionDbContext> options) : DbContex
             // Uma foto por cliente; excluir o cliente apaga a foto.
             e.HasIndex(f => f.ClienteId).IsUnique();
             e.HasOne(f => f.Cliente).WithMany().HasForeignKey(f => f.ClienteId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClienteLembrete>(e =>
+        {
+            e.ToTable("cliente_lembretes");
+            e.Property(l => l.Id).HasColumnName("id");
+            e.Property(l => l.ClienteId).HasColumnName("cliente_id");
+            e.Property(l => l.Data).HasColumnName("data");
+            e.Property(l => l.Texto).HasColumnName("texto").HasMaxLength(200);
+            e.Property(l => l.CriadoEm).HasColumnName("criado_em");
+            e.HasIndex(l => new { l.ClienteId, l.Data });
+            // Excluir o cliente apaga os lembretes dele.
+            e.HasOne(l => l.Cliente).WithMany().HasForeignKey(l => l.ClienteId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<MensagemImagem>(e =>

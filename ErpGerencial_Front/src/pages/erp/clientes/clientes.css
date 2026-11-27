@@ -660,10 +660,18 @@
   padding: 0.35rem 0.6rem 0.45rem;
 }
 
+/* Visual de folhinha de parede: folha branca, mês e ano em vermelho, números grandes, domingos e feriados em vermelho */
 .calendario {
+  --folhinha-vermelho: #d4141c;
+  --folhinha-linha: #22303a;
+  --folhinha-verde: #13893f;
+  --folhinha-azul: #1559b8;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.1rem, 0.3vh, 0.25rem);
+  gap: clamp(0.15rem, 0.4vh, 0.3rem);
+  padding: clamp(0.3rem, 0.6vh, 0.5rem);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 45, 70, 0.14);
 }
 
 .calendario:focus {
@@ -673,98 +681,336 @@
 .calendario-topo {
   display: flex;
   align-items: center;
+  gap: 0.35rem;
+}
+
+.calendario-titulo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  font-size: 0.95rem;
-  color: var(--azul-escuro);
+  gap: 0.5rem;
+  font-size: clamp(1.05rem, 2.3vh, 1.45rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--folhinha-vermelho);
+}
+
+.calendario-mes {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendario-ano {
+  font-variant-numeric: tabular-nums;
 }
 
 .calendario-topo button {
-  width: 32px;
-  height: clamp(20px, 2.8vh, 30px);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: clamp(22px, 3vh, 30px);
+  padding: 0;
   border: none;
   border-radius: 2px;
-  background: var(--azul-claro);
-  font-size: 1.2rem;
-  line-height: 1;
-  color: var(--azul-escuro);
+  background: transparent;
+  color: var(--folhinha-vermelho);
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.calendario-topo button:hover:not(:disabled) {
+  background: #fbe3e4;
 }
 
 .calendario-topo button:disabled {
   cursor: default;
-  opacity: 0.35;
+  opacity: 0.25;
 }
 
+/* Grade com linhas finas: o fundo escuro aparece entre as células */
 .calendario-grade {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: clamp(1px, 0.3vh, 3px);
+  gap: 1px;
+  padding: 1px;
+  background: var(--folhinha-linha);
 }
 
 .calendario-semana {
-  font-size: 0.74rem;
+  padding: 0.1rem 0;
+  background: #fff;
+  font-size: clamp(0.62rem, 1.15vh, 0.72rem);
   font-weight: 800;
+  letter-spacing: 0.04em;
   text-align: center;
-  color: var(--texto-suave);
+  color: var(--folhinha-linha);
+}
+
+.calendario-semana.domingo {
+  color: var(--folhinha-vermelho);
+}
+
+.calendario-vazio {
+  background: #fff;
 }
 
 .calendario-dia {
-  height: clamp(22px, calc(5vh - 11px), 40px);
+  height: clamp(24px, calc(5vh - 9px), 42px);
   padding: 0;
   border: none;
-  border-radius: 2px;
+  border-radius: 0;
   background: #fff;
   font: inherit;
-  font-size: clamp(0.8rem, 1.5vh, 0.95rem);
+  font-size: clamp(1rem, 2.1vh, 1.35rem);
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
-  color: var(--texto);
+  line-height: 1;
+  color: #111;
   cursor: pointer;
   transition: background-color 0.2s ease;
+}
+
+.calendario-dia.vermelho {
+  color: var(--folhinha-vermelho);
 }
 
 .calendario-dia:hover:not(:disabled) {
   background: var(--azul-claro);
 }
 
+/* Dias que já passaram: apagados, como riscados da folhinha */
 .calendario-dia:disabled {
-  background: transparent;
-  color: #aab4bb;
+  color: #b9c0c4;
   cursor: default;
 }
 
+.calendario-dia.vermelho:disabled {
+  color: #ecaeb0;
+}
+
 .calendario-dia.hoje {
-  box-shadow: inset 0 0 0 1px var(--azul);
+  box-shadow: inset 0 0 0 2px var(--azul);
 }
 
-/* Feriado nacional: contorno âmbar (o nome aparece ao passar o mouse) */
-.calendario-dia.feriado {
-  box-shadow: inset 0 0 0 2px #e0a526;
+/* Envio da mensagem automática: número verde; o próximo envio (escolhido) com fundo verde-claro */
+.calendario-dia.verde {
+  color: var(--folhinha-verde);
 }
 
-.calendario-dia.feriado.hoje {
-  box-shadow: inset 0 0 0 2px #e0a526, inset 0 0 0 3px var(--azul);
+.calendario-dia.escolhido {
+  background: #d8f1e0;
 }
 
-.calendario-dia.feriado:disabled {
-  box-shadow: inset 0 0 0 1px #ecd29a;
+/* Dia com lembrete: número azul */
+.calendario-dia.azul {
+  color: var(--folhinha-azul);
 }
 
-/* Envios seguintes (a cada N meses) */
-.calendario-dia.agendado {
-  background: #c7dfe8;
+/* Quadro pautado com os feriados do mês (como o "Lembrete" da folhinha) */
+.calendario-feriados {
+  padding: 0.15rem 0.5rem 0.3rem;
+  box-shadow: inset 0 0 0 1px var(--folhinha-linha);
+}
+
+.calendario-feriados-titulo {
+  display: block;
+  font-size: clamp(0.62rem, 1.15vh, 0.72rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--folhinha-linha);
+}
+
+.calendario-feriados ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada linha da pauta: texto apoiado sobre um traço fino. Feriado vermelho, lembrete azul, envio verde */
+.calendario-feriados li {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3rem;
+  min-height: clamp(1.15rem, 2.3vh, 1.45rem);
+  padding-top: 0.15rem;
+  border-bottom: 1px solid #9aa6ad;
+  font-size: clamp(0.7rem, 1.3vh, 0.82rem);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--folhinha-vermelho);
+}
+
+.calendario-feriados li.lembrete {
+  color: var(--folhinha-azul);
+}
+
+.calendario-feriados li.envio {
+  color: var(--folhinha-verde);
+}
+
+.calendario-linha-texto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendario-feriados strong {
+  font-weight: 900;
+}
+
+.calendario-linha-remover {
+  flex-shrink: 0;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--texto-suave);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.calendario-linha-remover:hover {
+  background: #fbe3e4;
+  color: var(--erro);
+}
+
+/* ---------- Janela do dia (envio ou lembrete) e janela de digitar o lembrete ---------- */
+.janela-dia {
+  width: min(560px, calc(100vw - 2rem));
+}
+
+.janela-dia .janela-envios-topo h2::first-letter {
+  text-transform: uppercase;
+}
+
+.janela-dia-envio {
+  background: #dcf3e4;
+  color: var(--folhinha-verde, #13893f);
+}
+
+.janela-dia-envio img {
+  width: 44px;
+  height: 44px;
+}
+
+.janela-dia-lembrete {
+  background: #dde9fa;
+  color: var(--folhinha-azul, #1559b8);
+}
+
+.janela-dia-envio:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.janela-dia-lembretes {
+  display: grid;
+  gap: 0.4rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.janela-dia-lembretes li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 4px;
+  background: #f0f5fc;
+  font-size: 0.92rem;
+  color: #1559b8;
+}
+
+.janela-dia-lembretes li span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--texto);
+}
+
+.janela-dia-lembretes button {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--erro);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.janela-dia-lembretes button:hover {
+  background: #fbe3e4;
+}
+
+.janela-lembrete {
+  width: min(520px, calc(100vw - 2rem));
+}
+
+.janela-lembrete-campo {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--azul-escuro);
 }
 
-/* O próximo envio, escolhido */
-.calendario-dia.escolhido {
-  background: var(--grad-azul);
-  font-weight: 800;
-  color: #fff;
+.janela-lembrete-campo textarea {
+  width: 100%;
+  min-height: 8rem;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  background: #f0f5fc;
+  box-shadow: inset 0 0 0 1px #c5d6ec;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--texto);
+  resize: vertical;
+}
+
+.janela-lembrete-campo textarea:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #1559b8;
+}
+
+.janela-lembrete-contagem {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  text-align: right;
+  color: var(--texto-suave);
+}
+
+.janela-lembrete-botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
 }
 
 .calendario.com-erro .calendario-grade {
-  outline: 1px solid var(--erro);
+  outline: 2px solid var(--erro);
 }
 
 .ficha-envio-agenda {
@@ -788,7 +1034,7 @@
 }
 
 .ficha-envio-cancelar {
-  margin-top: auto;
+  margin-top: 0;
   min-height: 30px;
   padding: 0.25rem 0.4rem;
   border: none;
@@ -1088,7 +1334,7 @@
 /* Botão "Mensagem do WhatsApp" na faixa do Calendário (Editar cliente) */
 /* Mensagem do WhatsApp: botão do tamanho dos outros, no pé da coluna do horário (alinhado ao fim do calendário) */
 .ficha-envio-mensagem {
-  margin-top: auto;
+  margin-top: 0.15rem;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;

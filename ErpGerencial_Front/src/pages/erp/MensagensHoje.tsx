@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listarMensagensHoje, type MensagemHoje } from '../../services/api'
 import { formatarTelefone } from '../../utils/validacao'
+import { linkWhatsapp } from '../../utils/whatsapp'
 import { useErp } from './contexto'
 
 /** A lista se atualiza sozinha a cada minuto (o envio automático confere a cada minuto). */
@@ -97,6 +98,17 @@ export default function MensagensHoje() {
             const s = SITUACAO[m.situacao]
             return (
               <li key={`${m.clienteId}-${m.horario}-${i}`} title={m.erro ?? undefined}>
+                {/* Abre a conversa com o cliente no WhatsApp (Web ou aplicativo) para mandar a mensagem por conta própria */}
+                <a
+                  className="mensagens-hoje-whatsapp"
+                  href={linkWhatsapp(m.celular) ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Abrir conversa no WhatsApp com ${m.nome}`}
+                  aria-label={`Abrir conversa no WhatsApp com ${m.nome}`}
+                >
+                  <img src="/imgs/whatsapp.png" alt="" aria-hidden="true" />
+                </a>
                 <time className="mensagens-hoje-hora">{hora(m.horario)}</time>
                 <Link to={`/app/clientes/${m.clienteId}`} className="mensagens-hoje-nome">
                   {m.nome}

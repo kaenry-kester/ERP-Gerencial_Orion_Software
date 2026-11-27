@@ -24,6 +24,21 @@ type Props = {
   className?: string
   /** Imagem pequena à esquerda do campo (ex.: "/imgs/whatsapp.png"). */
   icone?: string
+  /** Endereço aberto ao clicar no ícone, numa aba nova (ex.: a conversa no WhatsApp); sem ele, o ícone não clica. */
+  linkIcone?: string | null
+  /** Dica do ícone clicável (ex.: "Abrir conversa no WhatsApp"). */
+  dicaIcone?: string
+}
+
+/** Ícone pequeno à esquerda do campo; com link, vira um botão que abre o endereço numa aba nova. */
+export function IconeFicha({ icone, link, dica }: { icone: string; link?: string | null; dica?: string }) {
+  const imagem = <img src={icone} alt="" aria-hidden="true" />
+  if (!link) return imagem
+  return (
+    <a className="ficha-icone-link" href={link} target="_blank" rel="noopener noreferrer" title={dica} aria-label={dica}>
+      {imagem}
+    </a>
+  )
 }
 
 /**
@@ -46,6 +61,8 @@ export default function CampoFicha({
   linhas,
   className,
   icone,
+  linkIcone,
+  dicaIcone,
   min,
 }: Props) {
   const idErro = `${id}-erro`
@@ -118,7 +135,7 @@ export default function CampoFicha({
         </select>
       ) : icone ? (
         <div className="ficha-com-icone">
-          <img src={icone} alt="" aria-hidden="true" />
+          <IconeFicha icone={icone} link={linkIcone} dica={dicaIcone} />
           {campoTexto}
         </div>
       ) : (

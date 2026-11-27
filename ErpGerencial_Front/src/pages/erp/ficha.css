@@ -143,6 +143,32 @@
   flex-shrink: 0;
 }
 
+/* Ícone clicável (ex.: WhatsApp do celular): abre a conversa numa aba nova */
+.ficha-icone-link {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  margin: -0.2rem 0 -0.2rem -0.25rem;
+  padding: 0.2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.ficha-icone-link:hover {
+  background: #dcf3e4;
+  transform: scale(1.12);
+}
+
+.ficha-icone-link:focus-visible {
+  outline: 2px solid #13893f;
+  outline-offset: 1px;
+}
+
+.ficha-icone-link img {
+  display: block;
+}
+
 .ficha-com-icone input {
   flex: 1;
   min-width: 0;

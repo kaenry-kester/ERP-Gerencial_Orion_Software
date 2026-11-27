@@ -18,6 +18,7 @@ import {
   type EnvioWhatsapp,
 } from '../../../services/api'
 import { formatarCep, formatarDocumento, formatarMoeda, formatarTelefone } from '../../../utils/validacao'
+import { linkWhatsapp } from '../../../utils/whatsapp'
 import AvisoPagina from '../AvisoPagina'
 import { useErp } from '../contexto'
 import FaixaPagina from '../FaixaPagina'
@@ -211,8 +212,23 @@ export default function ClientePage() {
                   <ValorFicha rotulo="Cônjuge" valor={cliente.conjuge} className="c6" />
                   <ValorFicha rotulo="Data do cadastro" valor={dia(cliente.dataCompra)} className="c3" />
 
-                  <ValorFicha rotulo="Celular" valor={formatarTelefone(cliente.celular)} icone="/imgs/whatsapp.png" className="c3" />
-                  <ValorFicha rotulo="Celular 2" valor={telefone(cliente.celular2)} icone="/imgs/whatsapp.png" className="c3" />
+                  {/* Ícone do WhatsApp: abre a conversa com o número numa aba nova */}
+                  <ValorFicha
+                    rotulo="Celular"
+                    valor={formatarTelefone(cliente.celular)}
+                    icone="/imgs/whatsapp.png"
+                    linkIcone={linkWhatsapp(cliente.celular)}
+                    dicaIcone={`Abrir conversa no WhatsApp com ${cliente.nome}`}
+                    className="c3"
+                  />
+                  <ValorFicha
+                    rotulo="Celular 2"
+                    valor={telefone(cliente.celular2)}
+                    icone="/imgs/whatsapp.png"
+                    linkIcone={linkWhatsapp(cliente.celular2)}
+                    dicaIcone={`Abrir conversa no WhatsApp com ${cliente.nome} (celular 2)`}
+                    className="c3"
+                  />
                   <ValorFicha rotulo="Fone residencial" valor={telefone(cliente.telefoneResidencial)} className="c3" />
                   <ValorFicha rotulo="Fone comercial" valor={telefone(cliente.telefoneComercial)} className="c3" />
                 </div>
