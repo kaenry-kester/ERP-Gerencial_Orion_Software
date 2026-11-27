@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { feriado } from './feriados'
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -73,11 +74,13 @@ export default function CalendarioEnvio({ id, dia, agendados, onEscolher, mesesM
         {celulas.map((n, i) => {
           if (n === null) return <span key={`v${i}`} />
           const d = paraDia(visto.ano, visto.mes, n)
+          const nomeFeriado = feriado(d)
           const classe = [
             'calendario-dia',
             d === dia && 'escolhido',
             d !== dia && marcados.has(d) && 'agendado',
             d === hoje && 'hoje',
+            nomeFeriado && 'feriado',
           ]
             .filter(Boolean)
             .join(' ')
@@ -88,7 +91,8 @@ export default function CalendarioEnvio({ id, dia, agendados, onEscolher, mesesM
               className={classe}
               disabled={d < hoje}
               aria-pressed={d === dia}
-              aria-label={`${n} de ${MESES[visto.mes]}${marcados.has(d) ? ', envio agendado' : ''}`}
+              title={nomeFeriado ? `Feriado: ${nomeFeriado}` : undefined}
+              aria-label={`${n} de ${MESES[visto.mes]}${nomeFeriado ? `, feriado: ${nomeFeriado}` : ''}${marcados.has(d) ? ', envio agendado' : ''}`}
               onClick={() => onEscolher(d)}
             >
               {n}

@@ -736,6 +736,19 @@
   box-shadow: inset 0 0 0 1px var(--azul);
 }
 
+/* Feriado nacional: contorno âmbar (o nome aparece ao passar o mouse) */
+.calendario-dia.feriado {
+  box-shadow: inset 0 0 0 2px #e0a526;
+}
+
+.calendario-dia.feriado.hoje {
+  box-shadow: inset 0 0 0 2px #e0a526, inset 0 0 0 3px var(--azul);
+}
+
+.calendario-dia.feriado:disabled {
+  box-shadow: inset 0 0 0 1px #ecd29a;
+}
+
 /* Envios seguintes (a cada N meses) */
 .calendario-dia.agendado {
   background: #c7dfe8;
